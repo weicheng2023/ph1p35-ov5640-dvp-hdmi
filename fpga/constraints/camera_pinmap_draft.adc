@@ -1,0 +1,76 @@
+# ============================================================================
+# ATK-MC5640 DVP 摄像头引脚约束草案
+#
+# 状态：DRAFT / 尚未与顶层 RTL 和 TD 工程绑定。
+#       当前端口名是建议命名，项目中还没有对应的 top 模块。
+#       在端口名未匹配前，不要把本文件直接加入 TD 工程，否则会报找不到端口。
+#
+# 目标器件：PH1P35MDG324
+# 目标板卡：PH1P35_FT V1 / HX1P35B_FT_40P
+# 依据：docs/hardware/wiring.md
+#       HX1P35B_FT_40P_2.pdf  (P01_FPGA, BANK22/BANK32)
+#       HX1P35B_FT_40P_6.pdf  (P05_GPIO, J2)
+#
+# 说明：
+#   - .adc 只描述“逻辑端口 -> FPGA 球位”，不证明外部导线已正确连接。
+#   - GND / 3.3V / NC 不是可编程 IO，不在本文件中分配。
+#   - 所有使用的 GPIO 位于 BANK22 或 BANK32，VCCIO 均为 3.3V，
+#     因此 IOSTANDARD 使用 LVCMOS33。
+#   - PCLK 固定为 F14（GCLKIOT3）；不得保留旧的 D4 方案。
+#   - 不在此文件添加 create_clock 或 false path：PCLK 频率尚未确认。
+# ============================================================================
+
+# --- DVP 像素时钟 ---
+# F14: IO_R14P_32,GCLKIOT3,T1  (BANK32)
+set_pin_assignment { cam_pclk } { LOCATION = F14; IOSTANDARD = LVCMOS33; }
+
+# --- DVP 同步 ---
+# K16: IO_R3N_32 (BANK32)
+set_pin_assignment { cam_vsync } { LOCATION = K16; IOSTANDARD = LVCMOS33; }
+# K17: IO_R3P_32 (BANK32)
+set_pin_assignment { cam_href } { LOCATION = K17; IOSTANDARD = LVCMOS33; }
+
+# --- DVP 数据 D[7:0] ---
+# 注意：ATK P1 的 D1-D6 在排针上交错排列，以下按信号位而不是排针顺序分配。
+# D0: J2-22 -> GPIOB_19 -> K15 (BANK32)
+set_pin_assignment { cam_data[0] } { LOCATION = K15; IOSTANDARD = LVCMOS33; }
+# D1: J2-23 -> GPIOB_20 -> K13 (BANK32)
+set_pin_assignment { cam_data[1] } { LOCATION = K13; IOSTANDARD = LVCMOS33; }
+# D2: J2-24 -> GPIOB_21 -> L15 (BANK32)
+set_pin_assignment { cam_data[2] } { LOCATION = L15; IOSTANDARD = LVCMOS33; }
+# D3: J2-25 -> GPIOB_22 -> L16 (BANK32)
+set_pin_assignment { cam_data[3] } { LOCATION = L16; IOSTANDARD = LVCMOS33; }
+# D4: J2-26 -> GPIOB_23 -> P10 (BANK22)
+set_pin_assignment { cam_data[4] } { LOCATION = P10; IOSTANDARD = LVCMOS33; }
+# D5: J2-27 -> GPIOB_24 -> P9 (BANK22)
+set_pin_assignment { cam_data[5] } { LOCATION = P9; IOSTANDARD = LVCMOS33; }
+# D6: J2-28 -> GPIOB_25 -> P8 (BANK22)
+set_pin_assignment { cam_data[6] } { LOCATION = P8; IOSTANDARD = LVCMOS33; }
+# D7: J2-31 -> GPIOB_26 -> R7 (BANK22)
+set_pin_assignment { cam_data[7] } { LOCATION = R7; IOSTANDARD = LVCMOS33; }
+
+# --- SCCB ---
+# SCL: J2-30 -> GPIOB_27 -> R6 (BANK22)；原表曾误接 J2-32(GND)
+set_pin_assignment { cam_scl } { LOCATION = R6; IOSTANDARD = LVCMOS33; }
+# SDA: J2-33 -> GPIOB_28 -> T5 (BANK22)
+set_pin_assignment { cam_sda } { LOCATION = T5; IOSTANDARD = LVCMOS33; }
+
+# --- 摄像头控制 ---
+# RESET: J2-34 -> GPIOB_29 -> U7 (BANK22)，低有效
+set_pin_assignment { cam_reset_n } { LOCATION = U7; IOSTANDARD = LVCMOS33; }
+# PWDN: J2-35 -> GPIOB_30 -> U6 (BANK22)，高有效
+set_pin_assignment { cam_pwdn } { LOCATION = U6; IOSTANDARD = LVCMOS33; }
+
+# ============================================================================
+# 未分配（正确）：
+#   GND     -> J2-32，接电源地，不能作为 GPIO
+#   3.3V    -> J2-29，接电源，不能作为 GPIO
+#   NC      -> 不连接
+#
+# 待顶层 RTL 建立后：
+#   1. 核对端口方向：cam_pclk/vsync/href/data 为 input；
+#      cam_scl/reset_n/pwdn 为 output；cam_sda 为 inout。
+#   2. 在 TD 中执行 I/O 检查，确认无重复球位、无 Bank 冲突。
+#   3. 确认 F14 可作为 PCLK 的时钟输入资源。
+#   4. PCLK 频率确定后再单独添加时序约束。
+# ============================================================================

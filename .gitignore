@@ -28,6 +28,8 @@ build/
 *.vpd
 *.log
 *.rpt
+*.bak
+*.tmp
 
 # ---------- Python 工具 ----------
 __pycache__/
@@ -37,3 +39,9 @@ __pycache__/
 # ---------- TD 生成物 ----------
 # 以 TD 6.2.1 首次构建的实际产物为准，后续补充具体模式；
 # 不得把工程入口或设计输入加入忽略列表。
+
+# ---------- 原厂原理图/数据手册（仅本地参考，不再分发） ----------
+# 版权与再分发条件未确认，默认不提交；文件保留在本地供核对。
+docs/camera/ATK-MC5640_V1.2.pdf
+docs/hardware/DS1300_PH1P_Datasheet.pdf
+docs/hardware/HX1P35B_FT_40P_*.pdf
