@@ -143,6 +143,19 @@ fpga\scripts\build_top_cam_id.bat
 fpga\scripts\build_top_led_test.bat
 ```
 
+### 6.2 SCL/SDA 纯引脚测试
+
+如果 `top_cam_id` 运行时 LED1 在闪，但逻辑分析仪看到 SCL/SDA 从不拉低，
+先排除“引脚没通”：
+
+1. 断开摄像头（避免 SDA 争用）。
+2. 烧 `build/bitstream/top_sccb_pin_test.bit`（Program SRAM）。
+3. 逻辑分析仪接 J2-32(SCL)、J2-33(SDA)、J2-30(GND)。
+4. 预期：SCL 约 1.5kHz 方波；SDA 同频率、开漏低脉冲，高电平由上拉拉高。
+
+- 有波形：FPGA 引脚、约束和连线正常，问题在 SCCB 主机启动/状态机。
+- 无波形：查 R6/T5 球位、J2-32/33、串联电阻和约束是否真正生效。
+
 常见现象：
 
 | 现象 | 可能原因 | 处理 |
