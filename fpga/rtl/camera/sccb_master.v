@@ -7,7 +7,7 @@
 //
 // Notes:
 //   - 4 phases per SCL period; DIV is the quarter-period divider.
-//   - DIV=125 @50MHz -> 100kHz SCCB.
+//   - DIV=125 @50MHz -> 100kHz SCCB; top_cam_id uses 250 -> 50kHz for margin.
 //   - SCCB read uses an NA bit (master drives high), not an I2C NACK.
 //   - sda is tri-state; top drives cam_sda = sda_oe ? sda_out : 1'bz.
 // ============================================================================
@@ -55,7 +55,6 @@ module sccb_master #(
     reg [15:0] reg_latch;
     reg        rw_latch;
     reg [7:0]  wr_latch;
-    reg        after_stop;
     reg [2:0]  byte_idx;
 
     assign busy = (state != ST_IDLE);
@@ -73,7 +72,6 @@ module sccb_master #(
             reg_latch  <= 16'd0;
             rw_latch   <= 1'b0;
             wr_latch   <= 8'd0;
-            after_stop <= 1'b0;
             byte_idx   <= 3'd0;
             rd_data    <= 8'd0;
             ack_error  <= 1'b0;
@@ -98,7 +96,6 @@ module sccb_master #(
                         tx_byte    <= {dev_addr, 1'b0};
                         byte_idx   <= 3'd0;
                         bit_cnt    <= 4'd0;
-                        after_stop <= 1'b0;
                         ack_error  <= 1'b0;
                         phase      <= 2'd0;
                         state      <= ST_START;
@@ -168,8 +165,11 @@ module sccb_master #(
                                 end
                                 3'd2: begin
                                     if (rw_latch) begin
-                                        after_stop <= 1'b1;
-                                        state      <= ST_STOP;
+                                        // Repeated START, no STOP between the
+                                        // register-address write and the read.
+                                        byte_idx <= 3'd3;
+                                        tx_byte  <= {dev_latch, 1'b1};
+                                        state    <= ST_START;
                                     end else begin
                                         byte_idx <= 3'd3;
                                         shifter  <= wr_latch;
@@ -182,8 +182,7 @@ module sccb_master #(
                                         rd_data <= 8'd0;
                                         state   <= ST_RX;
                                     end else begin
-                                        after_stop <= 1'b0;
-                                        state      <= ST_STOP;
+                                        state <= ST_STOP;
                                     end
                                 end
                             endcase
@@ -198,16 +197,9 @@ module sccb_master #(
                         2'd1: scl <= 1'b1;
                         2'd2: sda_out <= 1'b1;
                         2'd3: begin
-                            scl     <= 1'b1;
-                            sda_oe  <= 1'b0;
-                            if (after_stop) begin
-                                after_stop <= 1'b0;
-                                byte_idx   <= 3'd3;
-                                tx_byte    <= {dev_latch, 1'b1};
-                                state      <= ST_START;
-                            end else begin
-                                state <= ST_DONE;
-                            end
+                            scl    <= 1'b1;
+                            sda_oe <= 1'b0;
+                            state  <= ST_DONE;
                         end
                     endcase
                 end
@@ -237,9 +229,8 @@ module sccb_master #(
                         2'd1: scl <= 1'b1;
                         2'd2: scl <= 1'b1;
                         2'd3: begin
-                            scl        <= 1'b0;
-                            after_stop <= 1'b0;
-                            state      <= ST_STOP;
+                            scl   <= 1'b0;
+                            state <= ST_STOP;
                         end
                     endcase
                 end

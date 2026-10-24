@@ -27,7 +27,7 @@ module top_cam_id #(
     parameter integer PWRUP_CYCLES        = 500_000,    // 10ms
     parameter integer RESET_WAIT_CYCLES   = 1_000_000,  // 20ms
     parameter integer RETRY_CYCLES        = 50_000_000, // 1s
-    parameter integer SCCB_DIV            = 125,        // 100kHz @50MHz
+    parameter integer SCCB_DIV            = 250,        // 50kHz @50MHz (debug margin)
     parameter integer SCCB_TIMEOUT        = 200_000     // 4ms
 ) (
     input  wire       clk_50m,

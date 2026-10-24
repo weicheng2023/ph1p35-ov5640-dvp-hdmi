@@ -66,7 +66,7 @@
 | 独立供电/上电检查 | **未完成** | 同上 |
 | 最小 RTL / TD 工程 | **已完成** | `fpga/rtl/top/top_cam_id.v`、`fpga/project/top_cam_id.al` |
 | SCCB Chip ID 读取 | **RTL/仿真/位流完成，待上板** | `verification/board/bringup-sccb-id.md` |
-| TD 综合/布局布线/位流 | **已完成**（WNS +13.770 ns） | `build/bitstream/top_cam_id.bit` |
+| TD 综合/布局布线/位流 | **已完成**（WNS +13.966 ns） | `build/bitstream/top_cam_id.bit` |
 | 实物烧录与 LED 验证 | **未完成** | 见 bringup 文档 |
 | DVP 采集 | **未开始** | 待后续 RTL |
 | HDMI 显示 | **未开始** | 待后续 RTL |
@@ -171,7 +171,7 @@ fpga\scripts\build_top_cam_id.bat
 ```
 
 输出：`build\bitstream\top_cam_id.bit`。
-本机已实测：综合/布局布线/位流通过，Setup WNS=+13.770 ns，Hold WNS=+0.049 ns。
+本机已实测：综合/布局布线/位流通过，Setup WNS=+13.966 ns，Hold WNS=+0.079 ns。
 
 **注意**：TD 6.2.1 项目模式在本机生成的 `run.bat` 调用了不存在的
 `td_commands_prompt_commands_prompt.exe`，所以当前以命令行构建脚本为准；
