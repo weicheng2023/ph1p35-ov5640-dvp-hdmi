@@ -25,7 +25,7 @@
 | 实物连接 | **用户报告已完成** | 用户自述，未独立验证 |
 | 电气检查 | **待用户完成** | `verification/board/wiring-check.md` |
 | FPGA TD 环境验证 | **构建已完成，下载待验证** | TD 6.2.1 综合/布局布线/位流通过 |
-| SCCB 初始化与 Chip ID | **RTL/仿真/位流完成，待上板** | `top_cam_id`、`bringup-sccb-id.md` |
+| SCCB 初始化与 Chip ID | **已上板通过（用户实测 LED2/3/4 常亮）** | `top_cam_id`、`bringup-sccb-id.md` |
 | DVP 采集 | **待开发/待测试** | 未开始 |
 | HDMI 显示 | **待开发/待测试** | 未开始 |
 | 整体系统集成 | **待开发/待测试** | 以上均未完成 |
@@ -64,8 +64,8 @@
 - [x] **D2** 综合/布局布线可复现（TD 命令行脚本，已实测）。
 - [x] **D3** 时序检查通过（Setup WNS +12.684 ns，Hold WNS +0.047 ns）。
 - [x] **D4** 仿真回归通过（ModelSim，Chip ID 0x5640）。
-- [ ] **D5** 下载链路验证（**待上板**）。
-- [~] **D6** SCCB 读取 Chip ID：RTL/仿真/位流完成，**待实物验证**。
+- [x] **D5** 下载链路验证：用户已 Program SRAM 成功。
+- [x] **D6** SCCB 读取 Chip ID：用户实测 LED2/3/4 常亮（0x5640）。
 - [ ] **D7** DVP 采集（**未开始**）。
 - [ ] **D8** HDMI 显示（**未开始**）。
 
@@ -120,7 +120,8 @@
 - [x] **H5.2** 实现 SCCB 主机与 OV5640 Chip ID 读取（0x300A/0x300B）。
 - [x] **H5.3** ModelSim 仿真通过（Chip ID 0x5640）。
 - [x] **H5.4** TD 综合/布局布线/位流生成通过（WNS +12.684 ns）。
-- [ ] **H5.5** 按 `verification/board/bringup-sccb-id.md` 烧录并记录 LED。
+- [x] **H5.5** 按 `verification/board/bringup-sccb-id.md` 烧录并记录 LED：
+  LED1 闪烁，LED2/3/4 常亮，Chip ID 读取成功（用户实测）。
 - [ ] **H5.6** 通过后实现 DVP 接收（PCLK/VSYNC/HREF/数据对齐）。
 - [ ] **H5.7** 实现 HDMI 输出并显示。
 - [ ] **H5.8** 需要时再评估 DDR 帧缓存。
@@ -140,17 +141,17 @@
 
 ## 下一步动作（按顺序）
 
-1. 按 `verification/board/wiring-check.md` 完成断电检查（GND=J2-30，SCL=J2-32）。
-2. 完成独立供电与摄像头电流/温升检查。
-3. 双击 `fpga/scripts/build_top_cam_id.bat`，确认生成 `build/bitstream/top_cam_id.bit`。
-4. 按 `verification/board/bringup-sccb-id.md` 用 BitWizard Program SRAM，记录 LED。
-5. 若 LED1 不亮，补 4.7 kΩ SCCB 上拉后再试。
-6. Chip ID 通过后，再进入 DVP 采集与 HDMI 输出。
+1. ~~Chip ID 上板验证~~ —— 已完成（LED1 闪，LED2/3/4 常亮，0x5640）。
+2. 补齐 `wiring-check.md` 的实测记录和照片/波形证据。
+3. 下一阶段：DVP 接收。先只捕获 PCLK/VSYNC/HREF，验证极性和行/场计数。
+4. 再加入 D0–D7，验证第一个像素字节和一行数据。
+5. 最后做 HDMI 时序与显示；DDR 帧缓存暂不引入。
 
 ## 变更记录
 
 | 日期 | 内容 |
 |---|---|
+| 2026-10-24 | **上板验证通过**：LED1 闪烁，LED2/3/4 常亮，SCCB 读到 Chip ID 0x5640；SCL/SDA 读取成功后回到 idle 高电平属正常。 |
 | 2026-10-24 | 修复 SCCB master 漏采 1 周期 start 脉冲的问题（新增 `start_pending` 锁存）；testbench 改用 DIV=250 复测通过；重建位流，WNS +12.684 ns。 |
 | 2026-10-24 | SCCB 改为 **repeated START** 读时序，时钟降到 **50kHz**，ACK 高不作为失败条件；对齐本机厂商 OV5640 例程；重建位流，WNS +12.684 ns。 |
 | 2026-10-24 | SCCB 的 ACK 高不再作为失败条件（SCCB 第 9 位为 Don't Care）；LED2 改为“事务完成”指示；重建位流，WNS +12.684 ns。 |

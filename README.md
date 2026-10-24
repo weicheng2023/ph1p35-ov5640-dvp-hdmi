@@ -1,8 +1,9 @@
 # PH1P35 × ATK-MC5640：DVP 图像采集与 HDMI 显示
 
-> **当前状态（2026-10-24）**：最小 SCCB Chip ID 工程已建立。
-> RTL 已通过 ModelSim 仿真；TD 6.2.1 已完成综合、布局布线、时序检查并生成位流。
-> **尚未在实物上烧录验证**，DVP 采集和 HDMI 显示尚未开始。
+> **当前状态（2026-10-24）**：最小 SCCB Chip ID 工程已上板验证通过。
+> RTL 通过 ModelSim 仿真；TD 6.2.1 综合/布局布线/时序/位流通过；
+> 实物烧录后 LED1 闪烁、LED2/3/4 常亮，读回 **Chip ID = 0x5640**。
+> DVP 采集和 HDMI 显示尚未开始。
 >
 > **接线复核（2026-10-24）**：J2-30 = **GND**，J2-32 = **GPIOB_27（R6）**。
 > 此前“GND/SCL 接反”的说法是误读原理图右侧标签造成的，**已撤回**；
@@ -65,9 +66,9 @@
 | 万用表通断/短路检查 | **未完成** | `verification/board/wiring-check.md` |
 | 独立供电/上电检查 | **未完成** | 同上 |
 | 最小 RTL / TD 工程 | **已完成** | `fpga/rtl/top/top_cam_id.v`、`fpga/project/top_cam_id.al` |
-| SCCB Chip ID 读取 | **RTL/仿真/位流完成，待上板** | `verification/board/bringup-sccb-id.md` |
+| SCCB Chip ID 读取 | **已上板通过（0x5640）** | `verification/board/bringup-sccb-id.md` |
 | TD 综合/布局布线/位流 | **已完成**（WNS +12.684 ns） | `build/bitstream/top_cam_id.bit` |
-| 实物烧录与 LED 验证 | **未完成** | 见 bringup 文档 |
+| 实物烧录与 LED 验证 | **已完成（用户报告）** | LED1 闪，LED2/3/4 常亮 |
 | DVP 采集 | **未开始** | 待后续 RTL |
 | HDMI 显示 | **未开始** | 待后续 RTL |
 | DDR 帧缓存 | **未开始** | 待架构确认 |
@@ -179,12 +180,19 @@ fpga\scripts\build_top_cam_id.bat
 
 ### 7.2 下一阶段的上板顺序
 
-1. 完成 `verification/board/wiring-check.md` 的断电与供电检查。
-2. 按 `verification/board/bringup-sccb-id.md` 构建并 Program SRAM。
-3. 观察 LED：LED0 闪 + LED1/2/3 亮 = Chip ID 读取成功。
-4. 通过后再实现 DVP 接收与 HDMI 输出。
+已完成：
 
-不建议直接跳到完整视频链路；先证明电源、时钟、SCCB 和下载链路。
+1. 电源、时钟、下载链路、四个 LED 球位验证。
+2. SCCB 读 OV5640 Chip ID = `0x5640`（LED1 闪，LED2/3/4 常亮）。
+
+下一步：
+
+3. **DVP 接收**：先只捕获 PCLK/VSYNC/HREF，验证行/场计数和极性，
+   再接入 D0–D7 数据。
+4. 数据稳定后再做 HDMI 时序与显示。
+5. DDR 帧缓存暂不引入。
+
+不建议直接跳到完整视频链路；先逐级证明 PCLK、同步信号和数据对齐。
 
 ### 7.3 验证分级（不可互相替代）
 
