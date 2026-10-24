@@ -13,6 +13,9 @@
 //   - This block does not drive PCLK/DVP data. It validates power, reset,
 //     SCCB and the programming path only.
 //   - The camera module has an onboard 24MHz oscillator; no FPGA XCLK output.
+//   - SCCB's 9th bit is "don't care"; OV5640 may leave SDA high. ACK high is
+//     therefore not treated as a fatal error. Chip ID match is the real check.
+//   - link_ok means "a read transaction completed", not "ACK was low".
 // ============================================================================
 `timescale 1ns / 1ps
 
@@ -121,15 +124,11 @@ module ov5640_id_reader #(
                 S_WAIT_HI: begin
                     timeout_cnt <= timeout_cnt + 32'd1;
                     if (sccb_done && sccb_busy) begin
-                        if (sccb_ack_error) begin
-                            id_error  <= 1'b1;
-                            link_ok   <= 1'b0;
-                            delay_cnt <= 32'd0;
-                            state     <= S_RETRY;
-                        end else begin
-                            id_hi <= sccb_rd_data;
-                            state <= S_REQ_LO;
-                        end
+                        // SCCB's 9th bit is "don't care"; do not abort on ACK high.
+                        // Use the returned Chip ID as the real success criterion.
+                        id_hi   <= sccb_rd_data;
+                        link_ok <= 1'b1;
+                        state   <= S_REQ_LO;
                     end else if (timeout_cnt >= SCCB_TIMEOUT) begin
                         id_error  <= 1'b1;
                         link_ok   <= 1'b0;
@@ -153,15 +152,9 @@ module ov5640_id_reader #(
                 S_WAIT_LO: begin
                     timeout_cnt <= timeout_cnt + 32'd1;
                     if (sccb_done && sccb_busy) begin
-                        if (sccb_ack_error) begin
-                            id_error  <= 1'b1;
-                            link_ok   <= 1'b0;
-                            delay_cnt <= 32'd0;
-                            state     <= S_RETRY;
-                        end else begin
-                            id_lo <= sccb_rd_data;
-                            state <= S_CHECK;
-                        end
+                        id_lo   <= sccb_rd_data;
+                        link_ok <= 1'b1;
+                        state   <= S_CHECK;
                     end else if (timeout_cnt >= SCCB_TIMEOUT) begin
                         id_error  <= 1'b1;
                         link_ok   <= 1'b0;

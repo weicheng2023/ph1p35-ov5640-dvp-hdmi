@@ -50,7 +50,7 @@ set_pin_assignment { port_name } { LOCATION = <ball>; IOSTANDARD = LVCMOS33; }
 
 - `top_cam_id.adc` 的 9 个端口均被 TD 分配，无未约束 IO；
 - `top_cam_id.sdc` 的 50MHz 约束生效；
-- 综合/布局布线/位流通过，Setup WNS +13.581 ns、Hold WNS +0.066 ns。
+- 综合/布局布线/位流通过，Setup WNS +13.770 ns、Hold WNS +0.049 ns。
 
 尚未验证：
 

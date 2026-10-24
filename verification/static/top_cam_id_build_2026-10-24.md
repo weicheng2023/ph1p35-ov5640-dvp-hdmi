@@ -49,14 +49,20 @@ legalize_phy_inst → place → route → bitgen`。
 |---|---|
 | 综合/布局布线 | 通过 |
 | 未约束 IO | 0（9/9 端口已分配） |
-| Setup WNS | **+13.581 ns** |
+| Setup WNS | **+13.770 ns** |
 | Setup TNS | 0.000 ns |
-| Hold WNS | **+0.066 ns** |
+| Hold WNS | **+0.049 ns** |
 | Hold TNS | 0.000 ns |
 | Slices | 257（1.21%） |
 | 位流 | `build/bitstream/top_cam_id.bit`（约 1.8 MB） |
 | 时序报告 | `build/bitstream/top_cam_id_final_timing.rpt` |
 | QoR | `build/bitstream/top_cam_id_route.qor` |
+
+### SCCB ACK 说明
+
+SCCB 的第 9 位是 “Don't Care”，OV5640 不保证像 I2C 那样拉低 ACK。
+因此 `ov5640_id_reader` 不再因 ACK 高而中止；LED2 表示“读事务完成”，
+最终以 Chip ID 是否为 `0x5640` 判断成功。
 
 ## 3. 约束检查
 
