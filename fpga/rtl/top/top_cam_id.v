@@ -4,8 +4,8 @@
 //
 // Hardware:
 //   PH1P35_FT V1 / HX1P35B_FT_40P, PH1P35MDG324
-//   50MHz clock: D4 (FPGA_A_SYSCLK_50MHZ)
-//   LED0..3: E10, C6, D6, A5 (active high)
+//   50MHz clock: C4 (FPGA_A_SYSCLK_50MHZ)
+//   LED0..3: D10, E10, C6, D6 (active high; physical LED1..4)
 //   Camera SCCB/control: SCL=R6, SDA=T5, RESET=U7, PWDN=U6
 //
 // LEDs:

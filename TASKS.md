@@ -10,7 +10,7 @@
 - Git 仓库已初始化（`main` 分支），已有基线提交。
 - **最小 SCCB Chip ID 工程已建立**：RTL、约束、TD 构建脚本、testbench。
 - ModelSim 仿真通过：读回 `0x56/0x40`，Chip ID 匹配。
-- TD 6.2.1 综合/布局布线/位流通过：WNS +13.196 ns、Hold +0.069 ns。
+- TD 6.2.1 综合/布局布线/位流通过：WNS +13.581 ns、Hold +0.066 ns。
 - **尚未在实物上烧录验证**；DVP 和 HDMI 未开始。
 - 接线复核：**J2-30 = GND，J2-32 = GPIOB_27（SCL/R6）**，用户原表正确；
   2026-10-23 的“GND/SCL 接反”结论是误读，已撤回。
@@ -62,7 +62,7 @@
 
 - [x] **D1** TD 工程入口存在（`fpga/project/top_cam_id.al`）；项目模式顶层提示见 bringup 文档。
 - [x] **D2** 综合/布局布线可复现（TD 命令行脚本，已实测）。
-- [x] **D3** 时序检查通过（Setup WNS +13.196 ns，Hold WNS +0.069 ns）。
+- [x] **D3** 时序检查通过（Setup WNS +13.581 ns，Hold WNS +0.066 ns）。
 - [x] **D4** 仿真回归通过（ModelSim，Chip ID 0x5640）。
 - [ ] **D5** 下载链路验证（**待上板**）。
 - [~] **D6** SCCB 读取 Chip ID：RTL/仿真/位流完成，**待实物验证**。
@@ -119,7 +119,7 @@
 - [x] **H5.1** 建立最小 TD 工程与 50MHz/复位/LED/SCCB 顶层。
 - [x] **H5.2** 实现 SCCB 主机与 OV5640 Chip ID 读取（0x300A/0x300B）。
 - [x] **H5.3** ModelSim 仿真通过（Chip ID 0x5640）。
-- [x] **H5.4** TD 综合/布局布线/位流生成通过（WNS +13.196 ns）。
+- [x] **H5.4** TD 综合/布局布线/位流生成通过（WNS +13.581 ns）。
 - [ ] **H5.5** 按 `verification/board/bringup-sccb-id.md` 烧录并记录 LED。
 - [ ] **H5.6** 通过后实现 DVP 接收（PCLK/VSYNC/HREF/数据对齐）。
 - [ ] **H5.7** 实现 HDMI 输出并显示。
@@ -151,6 +151,7 @@
 
 | 日期 | 内容 |
 |---|---|
+| 2026-10-24 | 修正最小工程的时钟/用户灯球位：**C4 为 50MHz**，**D10/E10/C6/D6 对应物理 LED1–LED4**；重建位流，WNS +13.581 ns。此前 D4/E10/C6/D6/A5 为误读。 |
 | 2026-10-24 | 建立最小 SCCB Chip ID 工程、约束、TD 构建脚本与 testbench；ModelSim 仿真通过，TD 综合/布局布线/位流出图通过。 |
 | 2026-10-24 | 复核高分辨率 J2 图：确认 **J2-30=GND、J2-32=GPIOB_27**，撤回 10-23 的错误对调结论；恢复用户原表。 |
 | 2026-10-23 | 核对板卡/摄像头原理图；生成 wiring.md、wiring-check.md、camera_pinmap_draft.adc；当时误读 J2-30/32，已于 10-24 撤回；记录 SCCB 上拉与 P1 符号偏移风险。 |

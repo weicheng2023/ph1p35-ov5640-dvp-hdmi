@@ -66,7 +66,7 @@
 | 独立供电/上电检查 | **未完成** | 同上 |
 | 最小 RTL / TD 工程 | **已完成** | `fpga/rtl/top/top_cam_id.v`、`fpga/project/top_cam_id.al` |
 | SCCB Chip ID 读取 | **RTL/仿真/位流完成，待上板** | `verification/board/bringup-sccb-id.md` |
-| TD 综合/布局布线/位流 | **已完成**（WNS +13.196 ns） | `build/bitstream/top_cam_id.bit` |
+| TD 综合/布局布线/位流 | **已完成**（WNS +13.581 ns） | `build/bitstream/top_cam_id.bit` |
 | 实物烧录与 LED 验证 | **未完成** | 见 bringup 文档 |
 | DVP 采集 | **未开始** | 待后续 RTL |
 | HDMI 显示 | **未开始** | 待后续 RTL |
@@ -157,8 +157,8 @@ TD 自带资料：`doc/TD_User_Guide_V6.2.pdf`、
 
 当前已有一个最小工程 `top_cam_id`：
 
-- 50 MHz 时钟（D4）
-- 4 个 LED（E10/C6/D6/A5）
+- 50 MHz 时钟（C4）
+- 4 个 LED（D10/E10/C6/D6，对应物理 LED1–LED4）
 - SCCB（SCL=R6，SDA=T5）
 - 摄像头 RESET（U7）、PWDN（U6）
 - 读取 `0x300A/0x300B`，判断 Chip ID 是否为 `0x5640`
@@ -171,7 +171,7 @@ fpga\scripts\build_top_cam_id.bat
 ```
 
 输出：`build\bitstream\top_cam_id.bit`。
-本机已实测：综合/布局布线/位流通过，Setup WNS=+13.196 ns，Hold WNS=+0.069 ns。
+本机已实测：综合/布局布线/位流通过，Setup WNS=+13.581 ns，Hold WNS=+0.066 ns。
 
 **注意**：TD 6.2.1 项目模式在本机生成的 `run.bat` 调用了不存在的
 `td_commands_prompt_commands_prompt.exe`，所以当前以命令行构建脚本为准；

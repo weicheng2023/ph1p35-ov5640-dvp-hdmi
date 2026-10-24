@@ -69,10 +69,10 @@ fpga\scripts\build_top_cam_id.bat
 输出：
 
 - `build/bitstream/top_cam_id.bit`
-- `build/bitstream/final_timing.rpt`
-- `build/bitstream/route.qor`
+- `build/bitstream/top_cam_id_final_timing.rpt`
+- `build/bitstream/top_cam_id_route.qor`
 
-本机实测（2026-10-24）：Setup WNS +13.196 ns，Hold WNS +0.069 ns，
+本机实测（2026-10-24）：Setup WNS +13.581 ns，Hold WNS +0.066 ns，
 257 slices（1.21%）。
 
 ### 5.2 TD 工程入口

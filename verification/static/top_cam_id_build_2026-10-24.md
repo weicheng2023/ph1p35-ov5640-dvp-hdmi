@@ -49,20 +49,25 @@ legalize_phy_inst → place → route → bitgen`。
 |---|---|
 | 综合/布局布线 | 通过 |
 | 未约束 IO | 0（9/9 端口已分配） |
-| Setup WNS | **+13.196 ns** |
+| Setup WNS | **+13.581 ns** |
 | Setup TNS | 0.000 ns |
-| Hold WNS | **+0.069 ns** |
+| Hold WNS | **+0.066 ns** |
 | Hold TNS | 0.000 ns |
 | Slices | 257（1.21%） |
 | 位流 | `build/bitstream/top_cam_id.bit`（约 1.8 MB） |
-| 时序报告 | `build/bitstream/final_timing.rpt` |
-| QoR | `build/bitstream/route.qor` |
+| 时序报告 | `build/bitstream/top_cam_id_final_timing.rpt` |
+| QoR | `build/bitstream/top_cam_id_route.qor` |
 
 ## 3. 约束检查
 
 - `top_cam_id.adc`：9 个端口全部分配，无重复球位。
+- 时钟：**C4**（`FPGA_A_SYSCLK_50MHZ`）。
+- 用户灯：**D10/E10/C6/D6** 对应物理 LED1–LED4。
 - `top_cam_id.sdc`：50 MHz 时钟约束生效（Clock Summary 50.000 MHz）。
 - `camera_pinmap_draft.adc` 未参与本测试（DVP 阶段使用）。
+
+> 2026-10-24 修正：此前把时钟写成 D4、把 LED 写成 E10/C6/D6/A5，
+> 是误读了 `P01_FPGA_2` 的标签行；已按 `-table` 提取的球位改正并重新构建。
 
 ## 4. 已知限制
 

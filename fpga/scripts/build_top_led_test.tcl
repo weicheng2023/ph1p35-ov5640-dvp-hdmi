@@ -18,6 +18,7 @@ optimize_gate
 legalize_phy_inst
 place
 route
+report_qor -step route -file top_led_test_route.qor
 bitgen -bit top_led_test.bit
 puts "=== DONE: top_led_test.bit ==="
 exit

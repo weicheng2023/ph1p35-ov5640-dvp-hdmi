@@ -8,8 +8,8 @@
 #
 # Outputs (git-ignored):
 #   build/bitstream/top_cam_id.bit
-#   build/bitstream/route.qor
-#   build/bitstream/final_timing.rpt
+#   build/bitstream/top_cam_id_route.qor
+#   build/bitstream/top_cam_id_final_timing.rpt
 #
 # Note: all Tcl variable names use the bc_ prefix to avoid collisions with
 #       TD's own global variables (e.g. out_dir).
@@ -55,8 +55,8 @@ read_sdc $bc_sdc
 place
 route
 
-report_qor -step route -file route.qor
-report_timing_summary -file final_timing.rpt
+report_qor -step route -file top_cam_id_route.qor
+report_timing_summary -file top_cam_id_final_timing.rpt
 bitgen -bit top_cam_id.bit
 
 puts "=== DONE: top_cam_id.bit ==="

@@ -84,7 +84,7 @@ fpga\scripts\build_top_cam_id.bat
 ### 4.2 已实测结果（2026-10-24）
 
 - TD 6.2.1 综合/布局布线通过。
-- Setup WNS = **+13.196 ns**，Hold WNS = **+0.069 ns**。
+- Setup WNS = **+13.581 ns**，Hold WNS = **+0.066 ns**。
 - 资源：257 slices（1.21%）。
 - 已生成位流：`build/bitstream/top_cam_id.bit`。
 
@@ -112,12 +112,15 @@ fpga\scripts\build_top_cam_id.bat
 **LED1–LED4 才是四个用户灯**。FPGA 网络 `LED0..LED3` 分别对应物理
 `LED1..LED4`：
 
-| 物理 LED | FPGA 网络 | 含义 |
-|---|---|---|
-| LED1 | LED0 | 1 Hz 心跳闪烁：FPGA 已配置并在运行 |
-| LED2 | LED1 | 至少完成过一次无 ACK 错误的 SCCB 读 |
-| LED3 | LED2 | 读回高字节 == `0x56` |
-| LED4 | LED3 | Chip ID 完整匹配 `0x5640` |
+| 物理 LED | FPGA 网络 | FPGA 球位 | 含义 |
+|---|---|---|---|
+| LED1 | LED0 | D10 | 1 Hz 心跳闪烁：FPGA 已配置并在运行 |
+| LED2 | LED1 | E10 | 至少完成过一次无 ACK 错误的 SCCB 读 |
+| LED3 | LED2 | C6 | 读回高字节 == `0x56` |
+| LED4 | LED3 | D6 | Chip ID 完整匹配 `0x5640` |
+
+50MHz 时钟在 **C4**（`FPGA_A_SYSCLK_50MHZ`），不是 D4。
+`A5` 是 GPIOA32，不属于四个用户灯。
 
 **成功**：LED1 闪烁，且 LED2、LED3、LED4 都亮。
 
@@ -145,7 +148,7 @@ fpga\scripts\build_top_led_test.bat
 | 现象 | 可能原因 | 处理 |
 |---|---|---|
 | 只有 LED1 闪 | 摄像头没供电 / SCL、SDA 没接对 / 没有上拉 / PWDN 仍为高 | 测 P1-2 对 P1-1 电压；查 SCL=P1-3→J2-32，SDA=P1-5→J2-33；补 4.7k 上拉 |
-| LED1 不闪 | 位流没下载 / 时钟 D4 异常 | 重新 Program SRAM；先跑 top_led_test 诊断；检查 50MHz 晶振与 D4 |
+| LED1 不闪 | 位流没下载 / 时钟 C4 异常 | 重新 Program SRAM；先跑 top_led_test 诊断；检查 50MHz 晶振与 C4 |
 | LED2 亮，LED3/4 不亮 | SCCB 通了，但 ID 不是 0x5640 | 确认模组是 OV5640；检查读寄存器时序 |
 | LED2 周期性闪一下 | ACK 间歇成功 | 检查杜邦线长度、地线、上拉；缩短接线 |
 | 全部常亮/异常 | 可能误把 5V 或 GND 接到信号 | 立即断电，重做 wiring-check |
