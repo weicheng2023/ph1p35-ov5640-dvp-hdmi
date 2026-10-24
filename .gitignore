@@ -33,6 +33,7 @@ build/
 *.timingsummary
 *.bid
 *_Runs/
+.lock.f
 *.bak
 *.tmp
 
