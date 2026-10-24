@@ -10,6 +10,11 @@
 
 ## 1. `board/`：真实硬件验证
 
+当前文档：
+
+- `wiring-check.md`：接线电气检查表（待执行）。
+- `bringup-sccb-id.md`：最小 SCCB Chip ID 上板步骤与 LED 判读（待执行）。
+
 建议结构：
 
 ```text
@@ -33,6 +38,10 @@ board/
 - 未验证项
 
 ## 2. `static/`：静态检查结论
+
+当前记录：
+
+- `top_cam_id_build_2026-10-24.md`：ModelSim 仿真、TD 综合/布局布线/时序/位流结果。
 
 - 报告原件体积较大时留在 `build/reports/`，此处保存**结论摘要 + 复现命令**。
 - 命名：`<tool>_<date>_<summary>.md`。

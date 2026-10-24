@@ -1,13 +1,12 @@
 # PH1P35 × ATK-MC5640：DVP 图像采集与 HDMI 显示
 
-> **当前状态（2026-10-23）**：硬件接线资料阶段。
-> 已完成板卡/摄像头原理图核对、正式接线文档、电气检查表和引脚约束草案；
-> **尚无 RTL、TD 工程和可构建入口**，构建、上板与图像显示均未开始。
+> **当前状态（2026-10-24）**：最小 SCCB Chip ID 工程已建立。
+> RTL 已通过 ModelSim 仿真；TD 6.2.1 已完成综合、布局布线、时序检查并生成位流。
+> **尚未在实物上烧录验证**，DVP 采集和 HDMI 显示尚未开始。
 >
-> **⚠ 上电前必读**：原接线表把 GND 放在 J2-30、SCL 放在 J2-32，
-> 经原理图核对二者**接反**：J2-30 是 GPIOB_27（R6），J2-32 才是 GND。
-> 详见 [docs/hardware/wiring.md](docs/hardware/wiring.md) 和
-> [verification/board/wiring-check.md](verification/board/wiring-check.md)。
+> **接线复核（2026-10-24）**：J2-30 = **GND**，J2-32 = **GPIOB_27（R6）**。
+> 此前“GND/SCL 接反”的说法是误读原理图右侧标签造成的，**已撤回**；
+> 当前以 [docs/hardware/wiring.md](docs/hardware/wiring.md) 和你提供的表为准。
 
 ## 1. 项目目标
 
@@ -26,7 +25,7 @@
 | 摄像头 | 正点原子 **ATK-MC5640 V1.2**（OV5640，8-bit DVP） | 原理图/官方 README 已核对 |
 | 摄像头时钟 | 模组板载 24 MHz 晶振，FPGA 不输出 XCLK | 已确认 |
 | 连接器 | **J2** IDC40；不使用 MIPI J9 | 已确认 |
-| 供电 | 3.3 V：J2-29；GND：J2-32 | 已核对 |
+| 供电 | 3.3 V：J2-29；GND：J2-30 | 已核对 |
 | 显示 | HDMI 显示器 | 目标分辨率/刷新率待确认 |
 | 配置总线 | SCCB（类 I²C） | 已确认 |
 
@@ -59,16 +58,18 @@
 | 工作项 | 状态 | 证据/位置 |
 |---|---|---|
 | 目录与文档规范 | 已完成 | 本 README、`docs/README.md` |
-| 板卡/摄像头原理图核对 | 已完成（摄像头符号编号有偏移说明） | `docs/hardware/wiring.md` §6 |
+| 板卡/摄像头原理图核对 | 已完成（J2-30=GND，J2-32=GPIOB_27） | `docs/hardware/wiring.md` §6 |
 | 正式接线文档 | 已完成 | `docs/hardware/wiring.md` |
-| 引脚约束草案 | 已完成，未绑定顶层 | `fpga/constraints/` |
+| 引脚约束 | 最小工程约束已完成并用于构建 | `fpga/constraints/top_cam_id.adc` |
 | 用户报告实物接线 | 已完成（用户自述） | 待独立检查 |
 | 万用表通断/短路检查 | **未完成** | `verification/board/wiring-check.md` |
 | 独立供电/上电检查 | **未完成** | 同上 |
-| RTL / TD 工程 | **未开始** | `fpga/rtl/` 为空 |
-| SCCB Chip ID 读取 | **未开始** | 待 RTL |
-| DVP 采集 | **未开始** | 待 RTL |
-| HDMI 显示 | **未开始** | 待 RTL |
+| 最小 RTL / TD 工程 | **已完成** | `fpga/rtl/top/top_cam_id.v`、`fpga/project/top_cam_id.al` |
+| SCCB Chip ID 读取 | **RTL/仿真/位流完成，待上板** | `verification/board/bringup-sccb-id.md` |
+| TD 综合/布局布线/位流 | **已完成**（WNS +13.196 ns） | `build/bitstream/top_cam_id.bit` |
+| 实物烧录与 LED 验证 | **未完成** | 见 bringup 文档 |
+| DVP 采集 | **未开始** | 待后续 RTL |
+| HDMI 显示 | **未开始** | 待后续 RTL |
 | DDR 帧缓存 | **未开始** | 待架构确认 |
 
 已知电气风险（详见 wiring.md §5）：
@@ -87,13 +88,14 @@
 | 文档索引 | [docs/README.md](docs/README.md) | 已建立 |
 | **接线说明（当前有效）** | [docs/hardware/wiring.md](docs/hardware/wiring.md) | 已完成，含勘误 |
 | **电气检查表** | [verification/board/wiring-check.md](verification/board/wiring-check.md) | 待执行 |
-| **引脚约束草案** | [fpga/constraints/camera_pinmap_draft.adc](fpga/constraints/camera_pinmap_draft.adc) | 草案，未绑定顶层 |
-| 约束说明 | [fpga/constraints/README.md](fpga/constraints/README.md) | 已建立 |
-| TD 工程入口 | `fpga/project/*.al` | **尚不存在** |
-| 顶层 RTL | `fpga/rtl/top/` | **尚不存在** |
-| 仿真入口 | `fpga/sim/tb/` | 待建立 |
-| 构建脚本 | `fpga/scripts/`、`tools/` | 待建立 |
-| 第三方参考 | `third_party/` | 待导入 |
+| **最小上板步骤** | [verification/board/bringup-sccb-id.md](verification/board/bringup-sccb-id.md) | 待你在实物执行 |
+| **本测试引脚约束** | [fpga/constraints/top_cam_id.adc](fpga/constraints/top_cam_id.adc) | 已用于构建 |
+| 摄像头全量约束草案（DVP 阶段） | [fpga/constraints/camera_pinmap_draft.adc](fpga/constraints/camera_pinmap_draft.adc) | 草案，未绑定 DVP 顶层 |
+| TD 工程入口 | [fpga/project/top_cam_id.al](fpga/project/top_cam_id.al) | 可打开查看 |
+| 顶层 RTL | [fpga/rtl/top/top_cam_id.v](fpga/rtl/top/top_cam_id.v) | 已建立 |
+| 仿真入口 | [fpga/sim/tb/tb_top_cam_id.v](fpga/sim/tb/tb_top_cam_id.v) | 已通过 |
+| **一键构建** | [fpga/scripts/build_top_cam_id.bat](fpga/scripts/build_top_cam_id.bat) | 已实测 |
+| 第三方参考 | `third_party/` | 仍为空 |
 
 ## 5. 仓库结构
 
@@ -111,12 +113,12 @@
 │   └── debug/                调试记录、波形、问题分析
 ├── fpga/
 │   ├── README.md             工程组织、TD 约定
-│   ├── project/              TD 工程入口（.al）
+│   ├── project/              TD 工程入口 top_cam_id.al
 │   ├── rtl/                  top / camera / display / common
-│   ├── constraints/          引脚约束与 camera_pinmap_draft.adc
+│   ├── constraints/          top_cam_id.adc/.sdc（本测试）+ DVP 草案
 │   ├── ip/                   IP 配置与生成说明
-│   ├── sim/                  Testbench 与仿真脚本
-│   └── scripts/              工程、仿真、构建脚本
+│   ├── sim/                  tb_top_cam_id.v 与仿真产物
+│   └── scripts/              build_top_cam_id.bat/.tcl
 ├── verification/
 │   ├── README.md             三级验证规则
 │   ├── board/                上板测试计划、wiring-check.md、证据
@@ -131,7 +133,7 @@
 
 - 接线文档与代码分离：硬件事实在 `docs/hardware/`，约束在 `fpga/constraints/`，
   检查证据在 `verification/board/`，三者不混。
-- 约束草案明确标注“未绑定顶层”，避免在没有 RTL 时伪造可构建工程。
+- 最小工程约束 `top_cam_id.adc` 已绑定顶层；`camera_pinmap_draft.adc` 保留给 DVP 阶段。
 - 原厂 PDF 默认不入库（版权/再分发条件未确认），但保留在本地供核对。
 - `build/` 与 `_local/` 为不入库区域，防止仓库膨胀。
 
@@ -151,17 +153,36 @@ TD 自带资料：`doc/TD_User_Guide_V6.2.pdf`、
 
 ## 7. 构建、下载与验证
 
-### 7.1 现状
+### 7.1 现状：最小工程可构建
 
-**当前没有顶层 RTL、没有 `.al` 工程，无法构建。**
-`camera_pinmap_draft.adc` 是草案，端口名尚未与任何顶层匹配。
+当前已有一个最小工程 `top_cam_id`：
 
-### 7.2 下一阶段的最小验证顺序
+- 50 MHz 时钟（D4）
+- 4 个 LED（E10/C6/D6/A5）
+- SCCB（SCL=R6，SDA=T5）
+- 摄像头 RESET（U7）、PWDN（U6）
+- 读取 `0x300A/0x300B`，判断 Chip ID 是否为 `0x5640`
+
+构建方式：
+
+```bat
+cd /d D:\Projects\02_Personal_Practice\2026_10_OV5640
+fpga\scripts\build_top_cam_id.bat
+```
+
+输出：`build\bitstream\top_cam_id.bit`。
+本机已实测：综合/布局布线/位流通过，Setup WNS=+13.196 ns，Hold WNS=+0.069 ns。
+
+**注意**：TD 6.2.1 项目模式在本机生成的 `run.bat` 调用了不存在的
+`td_commands_prompt_commands_prompt.exe`，所以当前以命令行构建脚本为准；
+`top_cam_id.al` 仅用于查看/编辑源文件。
+
+### 7.2 下一阶段的上板顺序
 
 1. 完成 `verification/board/wiring-check.md` 的断电与供电检查。
-2. 建立最小顶层（仅时钟/复位/LED 或 SCCB 主机），验证 TD 工程、下载链路。
-3. 实现 SCCB 配置并读取 OV5640 Chip ID，确认 0x5640。
-4. 再实现 DVP 接收与 HDMI 输出，逐级验证。
+2. 按 `verification/board/bringup-sccb-id.md` 构建并 Program SRAM。
+3. 观察 LED：LED0 闪 + LED1/2/3 亮 = Chip ID 读取成功。
+4. 通过后再实现 DVP 接收与 HDMI 输出。
 
 不建议直接跳到完整视频链路；先证明电源、时钟、SCCB 和下载链路。
 
@@ -216,14 +237,16 @@ TD 自带资料：`doc/TD_User_Guide_V6.2.pdf`、
 
 ## 10. 待确认事项
 
-1. **实物换线**：把 GND 从 J2-30 移到 J2-32，把 SCL 从 J2-32 移到 J2-30。
-2. **万用表检查**：按 `verification/board/wiring-check.md` 执行并填写实测值。
+1. **万用表检查**：按 `verification/board/wiring-check.md` 执行并填写实测值
+   （GND=J2-30，SCL=J2-32，无需换线）。
+2. **上电检查**：摄像头不接时先测 J2-29=3.3 V、J2-30=0 V、J2-11=5 V。
 3. **摄像头 P1 Pin 1/电源脚**：核对模组丝印与官方 README 表。
-4. **SCCB 上拉**：补 4.7 kΩ 还是使用 FPGA 内部上拉，需要决定并验证。
-5. **RESET/PWDN 默认电平**：是否需要外部 10 kΩ 上/下拉。
-6. **PCLK 实际频率**：由 OV5640 寄存器配置决定，确定后再加时序约束。
-7. **HDMI 目标分辨率/刷新率**及像素时钟。
-8. **是否使用 DDR 帧缓存**及板上 DDR 型号。
-9. 板卡原理图的公开/再分发许可（当前 PDF 仅本地保留，不入库）。
+4. **烧录最小位流**：按 `bringup-sccb-id.md` 执行，记录 LED 结果。
+5. **SCCB 上拉**：当前 `.adc` 已启用 FPGA 内部上拉；若 LED1 不亮，补 4.7 kΩ 外部上拉。
+6. **RESET/PWDN 默认电平**：是否需要外部 10 kΩ 上/下拉。
+7. **PCLK 实际频率**：由 OV5640 寄存器配置决定，确定后再加时序约束。
+8. **HDMI 目标分辨率/刷新率**及像素时钟。
+9. **是否使用 DDR 帧缓存**及板上 DDR 型号。
+10. 板卡原理图的公开/再分发许可（当前 PDF 仅本地保留，不入库）。
 
 以上问题同步记录在 [TASKS.md](TASKS.md)。

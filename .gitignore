@@ -27,7 +27,12 @@ build/
 *.fsdb
 *.vpd
 *.log
+*.logw
 *.rpt
+*.qor
+*.timingsummary
+*.bid
+*_Runs/
 *.bak
 *.tmp
 

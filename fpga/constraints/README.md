@@ -4,13 +4,16 @@
 
 | 文件 | 状态 | 说明 |
 |---|---|---|
-| `camera_pinmap_draft.adc` | **草案，未绑定顶层** | ATK-MC5640 DVP 引脚到 PH1P35MDG324 球位的候选分配 |
+| `top_cam_id.adc` | **已用于构建** | 最小 SCCB Chip ID 工程：50MHz、LED、SCCB、RESET/PWDN |
+| `top_cam_id.sdc` | **已用于构建** | 50MHz 时钟约束 |
+| `camera_pinmap_draft.adc` | **草案，未绑定 DVP 顶层** | ATK-MC5640 DVP 全量引脚候选分配，留到 DVP 阶段 |
 
-当前**没有**顶层 RTL、`.al` 工程或正式 `.adc`，因此本目录还没有可构建的约束集。
+当前已有可构建的最小工程 `top_cam_id`，约束已通过 TD 综合/布局布线验证（无未约束 IO 报错）。
+`camera_pinmap_draft.adc` 仍不能直接用于本测试顶层，因为它的端口名包含 PCLK/DVP。
 
 ## 草案的使用条件
 
-`camera_pinmap_draft.adc` 使用的是建议端口名：
+`camera_pinmap_draft.adc` 用于未来的 DVP 顶层，建议端口名：
 
 ```text
 cam_pclk, cam_vsync, cam_href, cam_data[7:0],
@@ -41,11 +44,18 @@ set_pin_assignment { port_name } { LOCATION = <ball>; IOSTANDARD = LVCMOS33; }
 - 不为了让时序通过而添加 false path。
 - `.adc` 通过只代表“端口名和球位语法正确”，**不代表外部接线正确**。
 
-## 尚未验证
+## 已验证 / 尚未验证
 
-- 端口名与未来顶层的一致性（顶层尚不存在）。
-- TD 中的 I/O 规划、重复球位检查、Bank 电压检查。
+已验证：
+
+- `top_cam_id.adc` 的 9 个端口均被 TD 分配，无未约束 IO；
+- `top_cam_id.sdc` 的 50MHz 约束生效；
+- 综合/布局布线/位流通过，Setup WNS +13.196 ns、Hold WNS +0.069 ns。
+
+尚未验证：
+
+- `camera_pinmap_draft.adc` 与未来 DVP 顶层的一致性。
 - F14 作为 PCLK 时钟输入的资源和时序收敛情况。
 - 实物接线（见 `verification/board/wiring-check.md`）。
 
-这些必须在顶层 RTL 和 TD 工程建立后，用实际综合/布局布线结果确认。
+约束通过只证明“端口与球位映射被工具接受”，不代表外部导线正确或功能正常。

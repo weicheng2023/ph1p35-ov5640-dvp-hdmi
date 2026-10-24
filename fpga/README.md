@@ -1,7 +1,9 @@
 # FPGA 工程说明
 
-> **当前状态**：仅目录骨架与一份未绑定顶层的引脚约束草案；
-> 尚无 RTL、正式约束和 TD 工程，**不可构建**。
+> **当前状态（2026-10-24）**：已有最小 SCCB Chip ID 工程
+> （`rtl/top/top_cam_id.v` + `rtl/camera/sccb_master.v` + `ov5640_id_reader.v`）。
+> ModelSim 仿真通过；TD 综合/布局布线/位流通过；**尚未上板**。
+> 构建入口：`scripts/build_top_cam_id.bat`。
 
 ## 1. 目录职责
 
@@ -12,10 +14,10 @@
 | `rtl/camera/` | SCCB 配置、DVP 接收、同步与位宽对齐 | 是 |
 | `rtl/display/` | HDMI/TMDS 编码、视频时序生成 | 是 |
 | `rtl/common/` | 时钟/复位、CDC、FIFO 等与具体外设无关的逻辑 | 是 |
-| `constraints/` | 引脚与物理约束（`.adc`）、时序约束（`.sdc`）；当前含 `camera_pinmap_draft.adc` 草案 | 是 |
+| `constraints/` | 引脚/时序约束；`top_cam_id.adc/.sdc` 已用于最小工程，`camera_pinmap_draft.adc` 留给 DVP 阶段 | 是 |
 | `ip/` | IP 配置、生成说明、版本记录 | 配置入库，生成物按 §4 |
 | `sim/` | Testbench、测试向量、仿真脚本与日志 | TB 入库，波形/日志不入库 |
-| `scripts/` | 工程生成、仿真、构建与报告收集脚本 | 是 |
+| `scripts/` | 工程生成、仿真、构建与报告收集脚本；当前含 `build_top_cam_id.bat/.tcl` | 是 |
 
 ## 2. 依赖方向
 
@@ -52,17 +54,37 @@ rtl/top  ──►  rtl/camera
 - 若 TD 强制把中间文件写在工程目录，迁移时核对其路径，并用 `.gitignore`
   排除，不要用“复制一份工程”解决路径问题。
 
-## 5. 构建流程（待工程导入后实测）
+## 5. 构建流程（已实测）
 
-1. Git 初始化并建立骨架提交（回退点）。
-2. TD 打开 `project/<project>.al`。
-3. 核对器件型号、顶层模块、源文件列表、约束与 IP。
-4. 综合 → 布局布线 → 生成位流到 `build/`。
-5. 记录 TD 版本、器件、约束与 commit。
-6. 下载并转入 `verification/board/` 的上板流程。
+### 5.1 推荐：命令行脚本
 
-> 批处理命令与下载器参数在实测后写入 `scripts/` 与 `tools/`，
-> 不提前编造。
+```bat
+cd /d D:\Projects\02_Personal_Practice\2026_10_OV5640
+fpga\scripts\build_top_cam_id.bat
+```
+
+脚本调用 TD 6.2.1 的 `td_commands_prompt.exe`，依次执行：
+`read_hdl → read_adc → optimize_rtl → read_sdc → optimize_gate → place → route → bitgen`。
+
+输出：
+
+- `build/bitstream/top_cam_id.bit`
+- `build/bitstream/final_timing.rpt`
+- `build/bitstream/route.qor`
+
+本机实测（2026-10-24）：Setup WNS +13.196 ns，Hold WNS +0.069 ns，
+257 slices（1.21%）。
+
+### 5.2 TD 工程入口
+
+`project/top_cam_id.al` 可用于查看/编辑源文件。注意本机 TD 6.2.1 在项目模式
+生成的 `run.bat` 调用了不存在的 `td_commands_prompt_commands_prompt.exe`，
+所以 GUI Run 流程当前不可用；**以 5.1 脚本为准**。
+
+### 5.3 下载
+
+位流生成后，按 `verification/board/bringup-sccb-id.md` 用 BitWizard
+Program SRAM。首次验证不要先写 Flash。
 
 ## 6. 导入既有工程时的检查清单
 

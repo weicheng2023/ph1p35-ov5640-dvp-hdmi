@@ -50,7 +50,7 @@ set_pin_assignment { cam_data[6] } { LOCATION = P8; IOSTANDARD = LVCMOS33; }
 set_pin_assignment { cam_data[7] } { LOCATION = R7; IOSTANDARD = LVCMOS33; }
 
 # --- SCCB ---
-# SCL: J2-30 -> GPIOB_27 -> R6 (BANK22)；原表曾误接 J2-32(GND)
+# SCL: J2-32 -> GPIOB_27 -> R6 (BANK22)
 set_pin_assignment { cam_scl } { LOCATION = R6; IOSTANDARD = LVCMOS33; }
 # SDA: J2-33 -> GPIOB_28 -> T5 (BANK22)
 set_pin_assignment { cam_sda } { LOCATION = T5; IOSTANDARD = LVCMOS33; }
@@ -63,7 +63,7 @@ set_pin_assignment { cam_pwdn } { LOCATION = U6; IOSTANDARD = LVCMOS33; }
 
 # ============================================================================
 # 未分配（正确）：
-#   GND     -> J2-32，接电源地，不能作为 GPIO
+#   GND     -> J2-30，接电源地，不能作为 GPIO
 #   3.3V    -> J2-29，接电源，不能作为 GPIO
 #   NC      -> 不连接
 #
