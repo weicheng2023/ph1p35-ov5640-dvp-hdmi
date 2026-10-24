@@ -69,6 +69,13 @@
 - [ ] **D7** DVP 采集（**未开始**）。
 - [ ] **D8** HDMI 显示（**未开始**）。
 
+## E. 跨对话协作
+
+- [x] **E1** 建立 `AGENTS.md`：项目事实、规则、当前状态、坑点、下一步。
+- [x] **E2** 建立 `fpga-bringup` skill：构建、仿真、调试阶梯、完成后的更新流程。
+- [x] **E3** 建立 `CLAUDE.md` 指针，避免重复内容。
+- [x] **E4** 清理根目录与脚本目录的 TD 临时日志。
+
 ## H. 硬件接线阶段（2026-10-23）
 
 ### H1. 资料与图纸
@@ -151,6 +158,7 @@
 
 | 日期 | 内容 |
 |---|---|
+| 2026-10-24 | 建立 `AGENTS.md`、`.claude/skills/fpga-bringup/SKILL.md`、`CLAUDE.md` 指针；清理 TD 临时日志。 |
 | 2026-10-24 | **上板验证通过**：LED1 闪烁，LED2/3/4 常亮，SCCB 读到 Chip ID 0x5640；逻辑分析仪解码 `0x3C W 30 0A [SR] 0x3C R 56` / `30 0B ... 40`，证据归档到 `verification/board/evidence/20261024_sccb_chip_id/`。 |
 | 2026-10-24 | 修复 SCCB master 漏采 1 周期 start 脉冲的问题（新增 `start_pending` 锁存）；testbench 改用 DIV=250 复测通过；重建位流，WNS +12.684 ns。 |
 | 2026-10-24 | SCCB 改为 **repeated START** 读时序，时钟降到 **50kHz**，ACK 高不作为失败条件；对齐本机厂商 OV5640 例程；重建位流，WNS +12.684 ns。 |

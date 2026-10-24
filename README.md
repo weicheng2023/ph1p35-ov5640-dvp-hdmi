@@ -85,11 +85,13 @@
 
 | 用途 | 位置 | 现状 |
 |---|---|---|
+| **跨对话协作指南** | [AGENTS.md](AGENTS.md) | 已建立（单一事实来源） |
+| **构建/调试 skill** | [.claude/skills/fpga-bringup/SKILL.md](.claude/skills/fpga-bringup/SKILL.md) | 已建立 |
 | 任务与进度 | [TASKS.md](TASKS.md) | 已更新 |
 | 文档索引 | [docs/README.md](docs/README.md) | 已建立 |
 | **接线说明（当前有效）** | [docs/hardware/wiring.md](docs/hardware/wiring.md) | 已完成，含勘误 |
 | **电气检查表** | [verification/board/wiring-check.md](verification/board/wiring-check.md) | 待执行 |
-| **最小上板步骤** | [verification/board/bringup-sccb-id.md](verification/board/bringup-sccb-id.md) | 待你在实物执行 |
+| **最小上板步骤** | [verification/board/bringup-sccb-id.md](verification/board/bringup-sccb-id.md) | 已上板通过（0x5640） |
 | **本测试引脚约束** | [fpga/constraints/top_cam_id.adc](fpga/constraints/top_cam_id.adc) | 已用于构建 |
 | 摄像头全量约束草案（DVP 阶段） | [fpga/constraints/camera_pinmap_draft.adc](fpga/constraints/camera_pinmap_draft.adc) | 草案，未绑定 DVP 顶层 |
 | TD 工程入口 | [fpga/project/top_cam_id.al](fpga/project/top_cam_id.al) | 可打开查看 |
@@ -103,7 +105,10 @@
 ```text
 2026_10_OV5640/
 ├── README.md                 项目总览（本文件）
+├── AGENTS.md                 跨对话协作指南（项目事实/规则/状态）
+├── CLAUDE.md                 指向 AGENTS.md 的简短入口
 ├── TASKS.md                  任务清单、进度与待确认项
+├── .claude/skills/           fpga-bringup 构建/调试 skill
 ├── .gitignore                构建产物、局部资料、编辑器文件
 ├── docs/
 │   ├── README.md             文档索引与归档规则
