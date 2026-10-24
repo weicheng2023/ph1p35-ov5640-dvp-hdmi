@@ -35,8 +35,8 @@ module tb_top_cam_id;
         .PWRUP_CYCLES      (20),
         .RESET_WAIT_CYCLES (20),
         .RETRY_CYCLES      (200),
-        .SCCB_DIV          (2),
-        .SCCB_TIMEOUT      (2000)
+        .SCCB_DIV          (250),
+        .SCCB_TIMEOUT      (200_000)
     ) dut (
         .clk_50m     (clk),
         .led         (led),
@@ -168,7 +168,7 @@ module tb_top_cam_id;
     end
 
     initial begin
-        #500000; // 500 us
+        #5000000; // 5 ms, enough for 50kHz SCCB transactions
         $display("TB: FAIL - timeout (led=%b, id_hi=%02h, id_lo=%02h, link=%b, err=%b)",
                  led, dut.id_hi, dut.id_lo, dut.link_ok, dut.id_error);
         $finish;

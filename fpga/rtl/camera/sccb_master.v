@@ -56,6 +56,7 @@ module sccb_master #(
     reg        rw_latch;
     reg [7:0]  wr_latch;
     reg [2:0]  byte_idx;
+    reg        start_pending;
 
     assign busy = (state != ST_IDLE);
     assign done = (state == ST_DONE);
@@ -73,12 +74,19 @@ module sccb_master #(
             rw_latch   <= 1'b0;
             wr_latch   <= 8'd0;
             byte_idx   <= 3'd0;
+            start_pending <= 1'b0;
             rd_data    <= 8'd0;
             ack_error  <= 1'b0;
             scl        <= 1'b1;
             sda_out    <= 1'b1;
             sda_oe     <= 1'b0;
-        end else if (div_cnt == DIV - 1) begin
+        end else begin
+            // Latch a one-cycle start pulse until the next divider tick.
+            if (start && (state == ST_IDLE)) begin
+                start_pending <= 1'b1;
+            end
+
+            if (div_cnt == DIV - 1) begin
             div_cnt <= 8'd0;
             phase   <= phase + 2'd1;
 
@@ -88,17 +96,18 @@ module sccb_master #(
                     scl     <= 1'b1;
                     sda_out <= 1'b1;
                     sda_oe  <= 1'b0;
-                    if (start) begin
-                        dev_latch  <= dev_addr;
-                        reg_latch  <= reg_addr;
-                        rw_latch   <= rw;
-                        wr_latch   <= wr_data;
-                        tx_byte    <= {dev_addr, 1'b0};
-                        byte_idx   <= 3'd0;
-                        bit_cnt    <= 4'd0;
-                        ack_error  <= 1'b0;
-                        phase      <= 2'd0;
-                        state      <= ST_START;
+                    if (start || start_pending) begin
+                        dev_latch     <= dev_addr;
+                        reg_latch     <= reg_addr;
+                        rw_latch      <= rw;
+                        wr_latch      <= wr_data;
+                        tx_byte       <= {dev_addr, 1'b0};
+                        byte_idx      <= 3'd0;
+                        bit_cnt       <= 4'd0;
+                        ack_error     <= 1'b0;
+                        start_pending <= 1'b0;
+                        phase         <= 2'd0;
+                        state         <= ST_START;
                     end
                 end
 
@@ -246,6 +255,7 @@ module sccb_master #(
             endcase
         end else begin
             div_cnt <= div_cnt + 8'd1;
+        end
         end
     end
 

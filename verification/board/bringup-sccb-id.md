@@ -84,7 +84,7 @@ fpga\scripts\build_top_cam_id.bat
 ### 4.2 已实测结果（2026-10-24）
 
 - TD 6.2.1 综合/布局布线通过。
-- Setup WNS = **+13.966 ns**，Hold WNS = **+0.079 ns**。
+- Setup WNS = **+12.684 ns**，Hold WNS = **+0.047 ns**。
 - 资源：257 slices（1.21%）。
 - 已生成位流：`build/bitstream/top_cam_id.bit`。
 

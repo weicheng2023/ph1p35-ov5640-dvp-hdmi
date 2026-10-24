@@ -49,14 +49,24 @@ legalize_phy_inst → place → route → bitgen`。
 |---|---|
 | 综合/布局布线 | 通过 |
 | 未约束 IO | 0（9/9 端口已分配） |
-| Setup WNS | **+13.966 ns** |
+| Setup WNS | **+12.684 ns** |
 | Setup TNS | 0.000 ns |
-| Hold WNS | **+0.079 ns** |
+| Hold WNS | **+0.047 ns** |
 | Hold TNS | 0.000 ns |
 | Slices | 257（1.21%） |
 | 位流 | `build/bitstream/top_cam_id.bit`（约 1.8 MB） |
 | 时序报告 | `build/bitstream/top_cam_id_final_timing.rpt` |
 | QoR | `build/bitstream/top_cam_id_route.qor` |
+
+### start 脉冲差点被漏掉
+
+`sccb_master` 原来只在分频 tick（每 250 个时钟）里检查 `start`，
+而 `ov5640_id_reader` 的 `start` 只保持 1 个 50MHz 周期。
+DIV=250 时这个 20ns 脉冲几乎必然被漏掉，表现为 SCL/SDA 一直停在 idle 高电平；
+仿真用 DIV=2 时碰巧对上，所以之前没暴露。
+
+修复：master 内增加 `start_pending` 锁存，直到下一个 tick 再消费。
+testbench 已改为 **DIV=250** 重新验证通过。
 
 ### SCCB ACK 说明
 
