@@ -151,7 +151,7 @@
 
 | 日期 | 内容 |
 |---|---|
-| 2026-10-24 | **上板验证通过**：LED1 闪烁，LED2/3/4 常亮，SCCB 读到 Chip ID 0x5640；SCL/SDA 读取成功后回到 idle 高电平属正常。 |
+| 2026-10-24 | **上板验证通过**：LED1 闪烁，LED2/3/4 常亮，SCCB 读到 Chip ID 0x5640；逻辑分析仪解码 `0x3C W 30 0A [SR] 0x3C R 56` / `30 0B ... 40`，证据归档到 `verification/board/evidence/20261024_sccb_chip_id/`。 |
 | 2026-10-24 | 修复 SCCB master 漏采 1 周期 start 脉冲的问题（新增 `start_pending` 锁存）；testbench 改用 DIV=250 复测通过；重建位流，WNS +12.684 ns。 |
 | 2026-10-24 | SCCB 改为 **repeated START** 读时序，时钟降到 **50kHz**，ACK 高不作为失败条件；对齐本机厂商 OV5640 例程；重建位流，WNS +12.684 ns。 |
 | 2026-10-24 | SCCB 的 ACK 高不再作为失败条件（SCCB 第 9 位为 Don't Care）；LED2 改为“事务完成”指示；重建位流，WNS +12.684 ns。 |

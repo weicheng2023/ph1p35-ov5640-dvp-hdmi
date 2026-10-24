@@ -128,6 +128,13 @@ fpga\scripts\build_top_cam_id.bat
 > LED1 闪烁、LED2/3/4 稳定常亮，即 Chip ID = `0x5640` 读取成功。
 > 读取成功后设计停在 `S_OK`，不再发起新事务，因此 SCL/SDA 会回到
 > idle 高电平；逻辑分析仪必须在重新上电/重新配置时提前 armed 才能抓到那一次突发。
+>
+> 逻辑分析仪波形证据：
+> [evidence/20261024_sccb_chip_id/](evidence/20261024_sccb_chip_id/)
+>
+> 解码结果：`0x3C W 0x30 0x0A [SR] 0x3C R 0x56 NA`，以及
+> `0x3C W 0x30 0x0B [SR] 0x3C R 0x40 NA`。本模组在地址/数据字节会拉低 ACK，
+> 最后一次读的 NACK 是 SCCB 的 NA 位，不是错误。
 
 ### 6.1 四个用户灯全灭时的诊断
 
