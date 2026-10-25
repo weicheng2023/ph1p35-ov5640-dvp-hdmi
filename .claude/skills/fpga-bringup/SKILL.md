@@ -17,6 +17,20 @@ description: Continue the PH1P35 + ATK-MC5640 (OV5640) DVP/HDMI FPGA project. Us
 SCCB Chip ID **0x5640 is verified on board**. Next: DVP capture
 (PCLK/VSYNC/HREF, then D0–D7). HDMI and DDR are not started.
 
+## Starting DVP: read this first
+
+Read `docs/project/dvp-handoff.md` before writing DVP RTL.
+
+1. **Short pulses:** PCLK can be faster than the 50MHz system clock; HREF/VSYNC
+   widths are in PCLK cycles. Latch single-cycle events; use async FIFO/handshake
+   for multi-bit CDC. Do not repeat the SCCB `start` pulse mistake.
+2. **PDF alignment:** `-layout`/thumbnails have already caused one-row-off pin
+   errors (J2 GND/SCL, clock C4 vs D4, LED A5). Use `pdftotext -table` +
+   high-DPI crops + capability/silkscreen cross-checks.
+3. **Simulation fidelity:** use real PCLK frequency, real blanking/pulse widths,
+   real CDC/reset. Do not use DIV=2 or a simplified same-clock model and call it
+   verified. A simplification that hides timing bugs is invalid evidence.
+
 ## Build
 
 ```bat
@@ -82,6 +96,7 @@ Do not skip levels.
 - Do not treat SCCB NA as failure.
 - Do not trust `pdftotext -layout` or thumbnails for pin mapping; use `-table`
   + high-DPI crop + board test.
+- Do not simplify PCLK/VSYNC/HREF timing in simulation just to make it pass.
 - Do not commit PDFs, bitstreams, TD logs, `build/`, or generated databases.
 
 ## When done

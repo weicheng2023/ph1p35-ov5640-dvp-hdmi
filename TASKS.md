@@ -150,7 +150,8 @@
 
 1. ~~Chip ID 上板验证~~ —— 已完成（LED1 闪，LED2/3/4 常亮，0x5640）。
 2. 补齐 `wiring-check.md` 的实测记录和照片/波形证据。
-3. 下一阶段：DVP 接收。先只捕获 PCLK/VSYNC/HREF，验证极性和行/场计数。
+3. 下一阶段：DVP 接收。先读 `docs/project/dvp-handoff.md`，再只捕获
+   PCLK/VSYNC/HREF，验证极性和行/场计数。
 4. 再加入 D0–D7，验证第一个像素字节和一行数据。
 5. 最后做 HDMI 时序与显示；DDR 帧缓存暂不引入。
 

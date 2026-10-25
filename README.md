@@ -92,6 +92,7 @@
 | **接线说明（当前有效）** | [docs/hardware/wiring.md](docs/hardware/wiring.md) | 已完成，含勘误 |
 | **电气检查表** | [verification/board/wiring-check.md](verification/board/wiring-check.md) | 待执行 |
 | **最小上板步骤** | [verification/board/bringup-sccb-id.md](verification/board/bringup-sccb-id.md) | 已上板通过（0x5640） |
+| **DVP 阶段交接** | [docs/project/dvp-handoff.md](docs/project/dvp-handoff.md) | 下一阶段入口 |
 | **本测试引脚约束** | [fpga/constraints/top_cam_id.adc](fpga/constraints/top_cam_id.adc) | 已用于构建 |
 | 摄像头全量约束草案（DVP 阶段） | [fpga/constraints/camera_pinmap_draft.adc](fpga/constraints/camera_pinmap_draft.adc) | 草案，未绑定 DVP 顶层 |
 | TD 工程入口 | [fpga/project/top_cam_id.al](fpga/project/top_cam_id.al) | 可打开查看 |

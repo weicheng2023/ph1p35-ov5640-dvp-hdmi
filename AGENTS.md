@@ -206,22 +206,39 @@ capture settings, observed result, and limitations. Do not fabricate measurement
 
 ## 10. Next milestone: DVP
 
+**Detailed handoff: `docs/project/dvp-handoff.md`.** Read it before starting.
+
+Three rules for this stage:
+
+1. **Short pulses / short-duration signals matter.**
+   PCLK may be faster than the 50MHz system clock; HREF/VSYNC widths are measured
+   in PCLK cycles. Do not sample a one-cycle pulse only on a divided tick.
+   Latch/synchronize single-cycle events; use an async FIFO/handshake for
+   multi-bit data across PCLK/system domains. The SCCB `start` bug is the warning.
+2. **Re-check PDF pin alignment.**
+   `-layout`/thumbnails have already produced one-row-off errors (J2 GND/SCL,
+   clock C4 vs D4, LED A5). Use `pdftotext -table` + high-DPI crops +
+   pin-capability/board-silkscreen cross-checks. Update `wiring.md`, never create
+   a second pin table.
+3. **Simulation must reproduce real timing.**
+   Use the real PCLK frequency, real HREF/VSYNC blanking/pulse widths, and real
+   CDC/reset behavior. Do not use DIV=2 or a simplified same-clock model and call
+   it verified. A testbench that only passes because timing was simplified is
+   not evidence.
+
 Order of work:
 
 1. Probe `PCLK (F14/J2-7)`, `VSYNC (K16/J2-21)`, `HREF (K17/J2-20)` with the
-   camera in its current default state. Record whether they toggle and their polarity.
+   camera in its current default state. Record frequency, polarity, and timing.
 2. If there is no usable output, add OV5640 register configuration over SCCB
    (target format/resolution to be confirmed; likely RGB565 640x480).
-3. Implement DVP receiver:
-   - sample D0–D7 on the correct PCLK edge;
-   - VSYNC frame boundary;
-   - HREF line boundary;
-   - line/pixel counters.
-4. Verify with a stable frame counter and a known test pattern before HDMI.
+3. Implement DVP receiver: PCLK sampling edge, VSYNC frame boundary, HREF line
+   boundary, line/pixel counters, CDC to the system domain.
+4. Verify with stable frame/line/pixel counters and a known test pattern before HDMI.
 5. HDMI output after DVP data is stable. DDR frame buffer is out of scope for now.
 
 Acceptance for DVP: repeatable frame/line counters and data that matches a known
-camera configuration, with simulation + board evidence.
+camera configuration, with real-timing simulation + board evidence.
 
 ## 11. File map
 
@@ -231,6 +248,7 @@ README.md                         overview / status
 TASKS.md                          tasks / blockers / change log
 .claude/skills/fpga-bringup/      reusable build/debug skill
 docs/hardware/wiring.md           canonical wiring/pin table
+docs/project/dvp-handoff.md       DVP stage handoff and warnings
 docs/hardware/*.pdf               vendor schematics (local, ignored)
 fpga/rtl/top/top_cam_id.v         current bring-up top
 fpga/rtl/camera/sccb_master.v     SCCB master
