@@ -92,7 +92,10 @@ Other facts:
 ### Build
 
 ```bat
-cd /d D:\Projects\02_Personal_Practice\2026_10_OV5640
+rem one-time: point to your TD 6.2.1 install
+setx TD_HOME "C:\path\to\TD_6.2.1"
+
+cd /d <repo-root>
 fpga\scripts\build_top_cam_id.bat
 ```
 

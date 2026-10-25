@@ -67,19 +67,20 @@ RTL 暂不读取它们：
 
 1. 关闭正在占用工程的 TD 窗口。
 2. 打开文件夹：
-   `D:\Projects\02_Personal_Practice\2026_10_OV5640\fpga\scripts`
+   `<repo-root>\fpga\scripts`
 3. 双击 `build_top_cam_id.bat`。
 4. 等待窗口出现：
    `=== DONE: top_cam_id.bit ===`
 5. 检查文件是否存在：
-   `D:\Projects\02_Personal_Practice\2026_10_OV5640\build\bitstream\top_cam_id.bit`
+   `<repo-root>\build\bitstream\top_cam_id.bit`
 
-如果 TD 不在 `D:\Software\Anlogic\TD_6.2.1`，先在命令行设置：
+首次使用先设置 TD 安装目录（只需一次）：
 
 ```bat
-set TD_HOME=你的TD安装目录
-fpga\scripts\build_top_cam_id.bat
+setx TD_HOME "C:\path\to\TD_6.2.1"
 ```
+
+然后双击 `build_top_cam_id.bat`。
 
 ### 4.2 已实测结果（2026-10-24）
 
@@ -94,11 +95,11 @@ fpga\scripts\build_top_cam_id.bat
 
 1. 用 USB 线连接开发板的 **AL-LINK-FT / Type-C 下载口**。
 2. 打开 BitWizard：
-   - 直接运行 `D:\Software\Anlogic\TD_6.2.1\bin\bw.exe`，或
+   - 直接运行 `<TD_HOME>\bin\bw.exe`，或
    - TD 菜单 `Tools → BitWizard`（不同版本名称可能略有差异）。
 3. 点击 **Refresh**，确认器件显示为 `PH1P35MDG324`。
 4. 点击 **Add**，选择：
-   `D:\Projects\02_Personal_Practice\2026_10_OV5640\build\bitstream\top_cam_id.bit`
+   `<repo-root>\build\bitstream\top_cam_id.bit`
 5. 选择 **Program SRAM**（调试用，掉电丢失），点击 **Run**。
 6. 等待进度到 100%。
 7. 观察 4 个 LED。

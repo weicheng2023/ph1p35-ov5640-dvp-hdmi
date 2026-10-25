@@ -20,7 +20,7 @@ SCCB Chip ID **0x5640 is verified on board**. Next: DVP capture
 ## Build
 
 ```bat
-cd /d D:\Projects\02_Personal_Practice\2026_10_OV5640
+cd /d <repo-root>
 fpga\scripts\build_top_cam_id.bat
 ```
 

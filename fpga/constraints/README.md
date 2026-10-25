@@ -31,7 +31,7 @@ TD 6.2.1 自带例程使用：
 set_pin_assignment { port_name } { LOCATION = <ball>; IOSTANDARD = LVCMOS33; }
 ```
 
-参考：`D:\Software\Anlogic\TD_6.2.1\board_designs\ANLOGIC\AP102\LED_AP102\source_code\constraints\LED.adc`
+参考：`<TD_HOME>\board_designs\ANLOGIC\AP102\LED_AP102\source_code\constraints\LED.adc`
 
 ## 规则
 

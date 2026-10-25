@@ -3,7 +3,12 @@ setlocal
 
 rem TD 6.2.1 command-line build for top_cam_id.
 rem Override TD_HOME if TD is installed elsewhere.
-if not defined TD_HOME set "TD_HOME=D:\Software\Anlogic\TD_6.2.1"
+if not defined TD_HOME (
+    echo ERROR: TD_HOME is not set.
+    echo Example: set TD_HOME=C:\path\to\TD_6.2.1
+    pause
+    exit /b 1
+)
 
 if not exist "%TD_HOME%\bin\td_commands_prompt.exe" (
     echo ERROR: td_commands_prompt.exe not found under "%TD_HOME%".

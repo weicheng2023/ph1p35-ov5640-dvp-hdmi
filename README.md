@@ -148,7 +148,7 @@
 | 项目 | 内容 |
 |---|---|
 | FPGA IDE | Anlogic Tang Dynasty (TD) **6.2.1** |
-| 本机安装路径 | `D:\Software\Anlogic\TD_6.2.1` |
+| TD 安装路径 | `<TD_HOME>`（示例，不写入仓库） |
 | 目标器件 | PH1P35MDG324（原理图 U48） |
 | 版本控制 | Git 仓库已初始化（`main` 分支） |
 | 操作系统 | Windows 11 |
@@ -172,7 +172,10 @@ TD 自带资料：`doc/TD_User_Guide_V6.2.pdf`、
 构建方式：
 
 ```bat
-cd /d D:\Projects\02_Personal_Practice\2026_10_OV5640
+rem 首次使用：设置 TD 安装目录（示例）
+setx TD_HOME "C:\path\to\TD_6.2.1"
+
+cd /d <repo-root>
 fpga\scripts\build_top_cam_id.bat
 ```
 

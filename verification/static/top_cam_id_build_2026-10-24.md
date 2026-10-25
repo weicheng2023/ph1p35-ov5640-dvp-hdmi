@@ -36,7 +36,7 @@ Errors: 0, Warnings: 0
 构建命令：
 
 ```bat
-cd /d D:\Projects\02_Personal_Practice\2026_10_OV5640
+cd /d <repo-root>
 fpga\scripts\build_top_cam_id.bat
 ```
 

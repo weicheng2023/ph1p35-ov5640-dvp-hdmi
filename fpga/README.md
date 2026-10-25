@@ -59,7 +59,10 @@ rtl/top  ──►  rtl/camera
 ### 5.1 推荐：命令行脚本
 
 ```bat
-cd /d D:\Projects\02_Personal_Practice\2026_10_OV5640
+rem one-time: set the TD 6.2.1 install directory
+setx TD_HOME "C:\path\to\TD_6.2.1"
+
+cd /d <repo-root>
 fpga\scripts\build_top_cam_id.bat
 ```
 
