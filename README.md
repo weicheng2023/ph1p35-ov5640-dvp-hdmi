@@ -1,9 +1,24 @@
 # PH1P35 × ATK-MC5640：DVP 图像采集与 HDMI 显示
 
-> **当前状态（2026-10-24）**：最小 SCCB Chip ID 工程已上板验证通过。
+> **当前状态（2026-10-26）**：最小 SCCB Chip ID 工程已上板验证通过。
 > RTL 通过 ModelSim 仿真；TD 6.2.1 综合/布局布线/时序/位流通过；
 > 实物烧录后 LED1 闪烁、LED2/3/4 常亮，读回 **Chip ID = 0x5640**。
-> DVP 采集和 HDMI 显示尚未开始。
+>
+> **DVP 采集/配置**：PCLK 域接收、异步事件 FIFO、50MHz 事件监视器、
+> RGB565 配置/回读和 DVP 上板顶层已完成；24/48/50MHz 快速回归与
+> 24MHz 480 行完整帧仿真通过，
+> TD 构建通过，位流 `build/bitstream/top_dvp_test.bit`。
+> 见 [dvp_capture_sim_2026-10-26.md](verification/static/dvp_capture_sim_2026-10-26.md)
+> 和 [top_dvp_test_build_2026-10-26.md](verification/static/top_dvp_test_build_2026-10-26.md)。
+> **上板三通道：已通过**。实测 PCLK = 50 MHz；HREF 高有效
+> （15 kHz，40 µs 高 = 2000 PCLK）；VSYNC 低有效（30 Hz，33.33 ms）。
+> 配置已改为 `0x4740=0x22`，SDC 已改为 50 MHz。
+> **LED4 仍亮**：三通道时序通过，但行/场计数仍不匹配
+> （可能 `EXPECTED_LINES=480` vs 实际约 500 行/帧）。
+> 待解决：HREF 高 2000 字节 vs 640 像素有源 1280 字节；
+> 下一步定位 LED4，再做彩条 + D0–D7。见
+> [证据目录](verification/board/evidence/20261026_dvp_three_channel/README.md)。
+> HDMI 未开始。
 >
 > **接线复核（2026-10-24）**：J2-30 = **GND**，J2-32 = **GPIOB_27（R6）**。
 > 此前“GND/SCL 接反”的说法是误读原理图右侧标签造成的，**已撤回**；
@@ -69,7 +84,10 @@
 | SCCB Chip ID 读取 | **已上板通过（0x5640）** | `verification/board/bringup-sccb-id.md` |
 | TD 综合/布局布线/位流 | **已完成**（WNS +12.684 ns） | `build/bitstream/top_cam_id.bit` |
 | 实物烧录与 LED 验证 | **已完成（用户报告）** | LED1 闪，LED2/3/4 常亮 |
-| DVP 采集 | **未开始** | 待后续 RTL |
+| DVP 采集 RTL + 仿真 | **已完成**（24/48MHz，480 行帧） | `verification/static/dvp_capture_sim_2026-10-26.md` |
+| RGB565 配置/回读 + TD 构建 | **已完成（仿真/构建）** | `ov5640_cfg.v`、`top_dvp_test.v`；位流 `build/bitstream/top_dvp_test.bit` |
+| DVP 上板三通道 | **时序已通过**（PCLK 50 MHz，HREF 高有效，VSYNC 低有效，30 fps）；**LED4 计数不匹配待定位** | `verification/board/evidence/20261026_dvp_three_channel/` |
+| DVP 彩条 / D0–D7 字节序 | **未开始（下一步）** | 需 `COLOR_BAR=1` 位流 |
 | HDMI 显示 | **未开始** | 待后续 RTL |
 | DDR 帧缓存 | **未开始** | 待架构确认 |
 
@@ -196,10 +214,15 @@ fpga\scripts\build_top_cam_id.bat
 
 下一步：
 
-3. **DVP 接收**：先只捕获 PCLK/VSYNC/HREF，验证行/场计数和极性，
-   再接入 D0–D7 数据。
-4. 数据稳定后再做 HDMI 时序与显示。
-5. DDR 帧缓存暂不引入。
+3. **DVP 接收 RTL + 真实时序仿真** —— 已完成（`dvp_capture.v`、
+   `async_fifo_gray.v`、`dvp_status_monitor.v`、`tb_dvp_capture.v`）。
+4. **OV5640 RGB565 配置/回读 + DVP 上板顶层** —— 已完成
+   （`ov5640_cfg.v`、`ov5640_bringup.v`、`top_dvp_test.v`）；
+   位流 `build/bitstream/top_dvp_test.bit`。
+5. **上板三通道：已通过**（PCLK 50 MHz、HREF 高有效、VSYNC 低有效、
+   15 kHz 行 / 30 Hz 帧）。下一步：重建 `COLOR_BAR=1`，抓 D0–D7，
+   确认 RGB565 字节序，并解释 2000 字节 vs 1280 字节有源窗口。
+6. 数据稳定后再做 HDMI 时序与显示；DDR 帧缓存暂不引入。
 
 不建议直接跳到完整视频链路；先逐级证明 PCLK、同步信号和数据对齐。
 

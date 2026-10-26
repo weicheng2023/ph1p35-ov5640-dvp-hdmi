@@ -39,16 +39,19 @@
 - 在对应目录的说明或本索引登记“本地存放、未入库”，让其他开发者知道缺失原因。
 - 不提交厂商安装包、IDE 离线包、完整 SDK、超大原始视频。
 
-## 5. 当前状态（2026-10-23）
+## 5. 当前状态（2026-10-26）
 
 已导入并核对：
 
 | 文件 | 内容 | 入库 |
 |---|---|---|
 | `hardware/wiring.md` | 当前有效的 ATK-MC5640 → PH1P35 J2 接线表、电气注意事项、核对结果 | 是 |
+| `camera/README.md` | OV5640 资料链接、关键寄存器、极性矛盾与再分发约束 | 是 |
 | `hardware/HX1P35B_FT_40P_*.pdf` | PH1P35_FT V1 板卡原理图（原厂） | **否，本地保留** |
 | `hardware/DS1300_PH1P_Datasheet.pdf` | PH1P 器件数据手册（原厂） | **否，本地保留** |
 | `camera/ATK-MC5640_V1.2.pdf` | 摄像头模块原理图（原厂） | **否，本地保留** |
+| OV5640 Product Specification V2.03 | 传感器寄存器/DVP 时序手册（在线链接见 `camera/README.md`） | **否，仅引用链接** |
+| ALIENTEK OV5640 FPGA 驱动 V1.0 | RGB565 初始化参考（在线链接见 `camera/README.md`） | **否，仅引用链接** |
 
 原厂 PDF 的版权/再分发条件未确认，已在 `.gitignore` 中排除，仅本地参考。
 官方摄像头资料：<https://github.com/alientek-module/CAMERA-module_ATK-MC5640>

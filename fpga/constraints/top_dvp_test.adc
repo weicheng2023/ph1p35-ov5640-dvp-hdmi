@@ -1,0 +1,47 @@
+# ============================================================================
+# top_dvp_test.adc
+# 引脚约束：OV5640 DVP 采集上板测试
+#
+# 顶层：top_dvp_test
+# 器件：PH1P35MDG324（PH1P35_FT V1 / HX1P35B_FT_40P）
+# 依据：docs/hardware/wiring.md；P01_FPGA_2；P05_GPIO
+#
+# PCLK 用 F14（GCLKIOT3）；VSYNC/HREF/D0-D7 按 wiring.md 逐根对应。
+# ============================================================================
+
+# 50MHz 有源晶振（U31 -> FPGA_A_SYSCLK_50MHZ，BANK42）
+set_pin_assignment { clk_50m } { LOCATION = C4; IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }
+
+# 4 bit LED，高电平点亮（BANK42，1K 限流）
+# FPGA net LED0..3 -> physical LED1..LED4
+set_pin_assignment { led[0] } { LOCATION = D10; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = NONE; }
+set_pin_assignment { led[1] } { LOCATION = E10; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = NONE; }
+set_pin_assignment { led[2] } { LOCATION = C6;  IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = NONE; }
+set_pin_assignment { led[3] } { LOCATION = D6;  IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = NONE; }
+
+# SCCB（BANK22）
+# 模组与板卡都未画外部上拉，继续启用 FPGA 内部上拉；
+# 若配置失败，先补 4.7k 外部上拉。
+set_pin_assignment { cam_scl } { LOCATION = R6; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLUP; }
+set_pin_assignment { cam_sda } { LOCATION = T5; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLUP; }
+
+# 摄像头控制（BANK22）
+set_pin_assignment { cam_reset_n } { LOCATION = U7; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLUP; }
+set_pin_assignment { cam_pwdn }    { LOCATION = U6; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = NONE; }
+
+# DVP 时钟与同步（BANK32）
+# PCLK 来自摄像头，F14 具备 GCLKIOT3；作为真实时钟使用。
+set_pin_assignment { cam_pclk }  { LOCATION = F14; IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }
+set_pin_assignment { cam_vsync } { LOCATION = K16; IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }
+set_pin_assignment { cam_href }  { LOCATION = K17; IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }
+
+# DVP 数据 D0..D7（BANK32/BANK22）
+# 必须按 wiring.md 逐根对应，不能按排针物理相邻顺序推算。
+set_pin_assignment { cam_data[0] } { LOCATION = K15; IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }
+set_pin_assignment { cam_data[1] } { LOCATION = K13; IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }
+set_pin_assignment { cam_data[2] } { LOCATION = L15; IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }
+set_pin_assignment { cam_data[3] } { LOCATION = L16; IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }
+set_pin_assignment { cam_data[4] } { LOCATION = P10; IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }
+set_pin_assignment { cam_data[5] } { LOCATION = P9;  IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }
+set_pin_assignment { cam_data[6] } { LOCATION = P8;  IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }
+set_pin_assignment { cam_data[7] } { LOCATION = R7;  IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }

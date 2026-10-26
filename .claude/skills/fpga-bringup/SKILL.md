@@ -14,8 +14,11 @@ description: Continue the PH1P35 + ATK-MC5640 (OV5640) DVP/HDMI FPGA project. Us
 
 ## Current milestone
 
-SCCB Chip ID **0x5640 is verified on board**. Next: DVP capture
-(PCLK/VSYNC/HREF, then D0–D7). HDMI and DDR are not started.
+SCCB Chip ID **0x5640 is verified on board**. DVP capture RTL, real-timing
+simulation, RGB565 configuration/readback, `top_dvp_test.v` and the TD build
+have passed. **DVP three-channel board capture passed 2026-10-26:** PCLK
+50 MHz, HREF active high (15 kHz, 40 µs = 2000 PCLK), VSYNC active low
+(30 Hz). Next: color bar + D0–D7 byte order. HDMI and DDR are not started.
 
 ## Starting DVP: read this first
 
@@ -30,17 +33,25 @@ Read `docs/project/dvp-handoff.md` before writing DVP RTL.
 3. **Simulation fidelity:** use real PCLK frequency, real blanking/pulse widths,
    real CDC/reset. Do not use DIV=2 or a simplified same-clock model and call it
    verified. A simplification that hides timing bugs is invalid evidence.
+4. **Polarity (measured):** HREF active high, VSYNC active low. Write
+   `0x4740 = 0x22` explicitly and read it back. The capture instance uses
+   `HREF_ACTIVE_HIGH=1`, `VSYNC_ACTIVE_HIGH=0`. Do not use `0x23`; it did not
+   match the 2026-10-26 LA waveform. See `docs/camera/README.md` §2.1.
 
 ## Build
 
 ```bat
 cd /d <repo-root>
 fpga\scripts\build_top_cam_id.bat
+fpga\scripts\build_top_dvp_test.bat
 ```
 
 - TD 6.2.1 command-line flow, not the GUI Run (its generated `run.bat` is broken).
-- Output: `build/bitstream/top_cam_id.bit`.
-- Design-specific reports: `top_cam_id_route.qor`, `top_cam_id_final_timing.rpt`.
+- `top_cam_id.bit`: minimal SCCB/ID design.
+- `top_dvp_test.bit`: OV5640 RGB565 config + DVP capture + LEDs.
+- Design-specific reports: `<top>_route.qor`, `<top>_final_timing.rpt`.
+- `top_dvp_test.sdc` uses the measured **50 MHz** PCLK. Input delays
+  (10/2 ns) are still provisional.
 
 Diagnostics:
 
@@ -62,6 +73,78 @@ vsim -c -do "run -all; quit" work.tb_top_cam_id
 Expected: `TB: PASS - Chip ID matched (led=1110, id_hi=56, id_lo=40)`.
 The TB uses `SCCB_DIV=250`; keep it that way to catch divider-tick bugs.
 
+### DVP capture simulation
+
+```tcl
+cd build/sim
+vlib work
+vlog ../../fpga/rtl/common/async_fifo_gray.v \
+     ../../fpga/rtl/camera/dvp_capture.v \
+     ../../fpga/rtl/camera/dvp_status_monitor.v \
+     ../../fpga/sim/tb/tb_dvp_capture.v
+vsim -c -do "run -all; quit" work.tb_dvp_capture
+```
+
+Expected full-frame result (24 MHz placeholder, 480 lines, 1280 PCLK/line):
+
+```text
+TB: PASS - frames=3 ... pix_min=1280 pix_max=1280 events=963
+          bytes_err=0 setup_err=0 hold_err=0
+```
+
+Quick regression (keeps real PCLK and line length, reduces frame):
+
+```tcl
+vsim -c -gV_ACTIVE=16 -gV_BACK=2 -gV_FRONT=1 \
+     -do "run -all; quit" work.tb_dvp_capture
+```
+
+Polarity regressions (all must PASS):
+
+```tcl
+vsim -c -gV_ACTIVE=16 -gV_BACK=2 -gV_FRONT=1 -gVSYNC_ACTIVE_HIGH=0 \
+     -do "run -all; quit" work.tb_dvp_capture
+vsim -c -gV_ACTIVE=16 -gV_BACK=2 -gV_FRONT=1 \
+     -gHREF_ACTIVE_HIGH=0 -gVSYNC_ACTIVE_HIGH=0 \
+     -do "run -all; quit" work.tb_dvp_capture
+```
+
+Mutation tests must FAIL via the setup/hold monitor:
+
+```tcl
+vsim -c -gV_ACTIVE=16 -gV_BACK=2 -gV_FRONT=1 \
+     -do "run -all; quit" work.tb_dvp_capture +LAUNCH_POSEDGE
+vsim -c -gV_ACTIVE=16 -gV_BACK=2 -gV_FRONT=1 -gINVERT_DUT_PCLK=1 \
+     -do "run -all; quit" work.tb_dvp_capture
+```
+
+Do not treat the 24 MHz / 1280 / 480 numbers as measured. See
+`verification/static/dvp_capture_sim_2026-10-26.md` and
+`docs/camera/README.md`.
+
+### Config/readback simulation
+
+Compile the bring-up path once (the DVP files can stay in `work`):
+
+```tcl
+vlog ../../fpga/rtl/camera/sccb_master.v \
+     ../../fpga/rtl/camera/ov5640_id_reader.v \
+     ../../fpga/rtl/camera/ov5640_cfg_rom.v \
+     ../../fpga/rtl/camera/ov5640_cfg.v \
+     ../../fpga/rtl/camera/ov5640_bringup.v \
+     ../../fpga/sim/tb/tb_ov5640_bringup.v
+vsim -c -do "run -all; quit" work.tb_ov5640_bringup
+```
+
+Expected:
+
+```text
+TB: PASS - cfg_ok=1, id=5640, geom=640x480, 4300=61, 4740=23, 503D=00
+```
+
+This TB uses `SCCB_DIV=10` for speed. The DIV=250 protocol regression is
+`tb_top_cam_id.v`; keep both.
+
 ## Debug ladder
 
 Do not skip levels.
@@ -71,7 +154,10 @@ Do not skip levels.
 3. **Pin path**: `top_sccb_pin_test.bit` → SCL/SDA toggle on J2-32/33.
 4. **Protocol**: `top_cam_id.bit` → LED2/3/4 on; logic analyzer decode
    `0x3C W 30 0A [SR] 0x3C R 56` and `30 0B ... 40`.
-5. **DVP**: capture PCLK/VSYNC/HREF first; configure registers if no output.
+5. **DVP three-channel (done 2026-10-26)**: PCLK 50 MHz, HREF active high,
+   VSYNC active low. Next: rebuild with `COLOR_BAR=1` and probe D0–D7.
+   Follow `verification/board/bringup-dvp-three-channel.md`; evidence in
+   `verification/board/evidence/20261026_dvp_three_channel/`.
 
 ## Critical pins
 

@@ -2,7 +2,7 @@
 
 > **用法**：完成一项将 `[ ]` 改为 `[x]`，并在“变更记录”中注明日期与证据。
 > **状态**：`[x]` 已完成｜`[~]` 进行中｜`[ ]` 未开始｜`[!]` 阻塞/待确认
-> **最后更新**：2026-10-24
+> **最后更新**：2026-10-26
 
 ## 0. 当前结论
 
@@ -26,7 +26,7 @@
 | 电气检查 | **待用户完成** | `verification/board/wiring-check.md` |
 | FPGA TD 环境验证 | **构建已完成，下载待验证** | TD 6.2.1 综合/布局布线/位流通过 |
 | SCCB 初始化与 Chip ID | **已上板通过（用户实测 LED2/3/4 常亮）** | `top_cam_id`、`bringup-sccb-id.md` |
-| DVP 采集 | **待开发/待测试** | 未开始 |
+| DVP 采集 | **三通道通过；LED4 计数不匹配待定位；下一步彩条/D0–D7** | PCLK 50MHz、HREF 高有效、VSYNC 低有效、30fps；LED4 仍亮；见 `verification/board/evidence/20261026_dvp_three_channel/` |
 | HDMI 显示 | **待开发/待测试** | 未开始 |
 | 整体系统集成 | **待开发/待测试** | 以上均未完成 |
 
@@ -133,6 +133,60 @@
 - [ ] **H5.7** 实现 HDMI 输出并显示。
 - [ ] **H5.8** 需要时再评估 DDR 帧缓存。
 
+## I. DVP 采集阶段（2026-10-26）
+
+### I1. 资料与寄存器依据
+
+- [x] **I1.1** 获取 OV5640 Product Specification V2.03（2011-05-26），在线链接登记在
+  `docs/camera/README.md`；PDF 不入库。
+- [x] **I1.2** 获取 ALIENTEK OV5640 FPGA 驱动 V1.0（2020-05-04）作为初始化参考；
+  代码不入库，只记录来源、版本和差异。
+- [x] **I1.3** 核对 `0x4300=0x61`：RGB565，输出序列 `0x1`，高字节在前。
+- [x] **I1.4** 核对 `0x503D=0x80`：Pre-ISP 彩条使能；`0x00` 正常图像。
+- [x] **I1.5** 发现 `0x4740` 默认值 `0x20` 与 ALIENTEK 代码的 HREF/VSYNC
+  假设冲突；2026-10-26 实测确认 **HREF 高有效、VSYNC 低有效**，
+  显式写 `0x4740=0x22` 并回读确认。
+- [ ] **I1.6** 把实测 PCLK/HREF/VSYNC 参数写入 `verification/` 并更新仿真。
+
+### I2. RTL 与仿真
+
+- [x] **I2.1** 实现 `fpga/rtl/common/async_fifo_gray.v`（Gray 指针异步 FIFO）。
+- [x] **I2.2** 实现 `fpga/rtl/camera/dvp_capture.v`（PCLK 域采样、字节配对、
+  帧/行/像素计数、事件生成、错误标志）。
+- [x] **I2.3** 实现 `fpga/rtl/camera/dvp_status_monitor.v`（50MHz 域事件消费与检查）。
+- [x] **I2.4** 实现 `fpga/sim/tb/tb_dvp_capture.v`：真实 PCLK、异步 50MHz、
+  真实行/场结构、数据 skew、setup/hold 监视。
+- [x] **I2.5** 16 行快速回归在 24/48/50MHz 下通过；HREF/VSYNC 四种极性组合
+  （高/高、高/低、低/低）通过。
+- [x] **I2.6** 480 行 × 1280 PCLK 完整帧仿真通过：`bytes_err=0`,
+  `setup_err=0`, `hold_err=0`，963 个事件。
+- [x] **I2.7** 错误沿/错误采样时刻变异测试被 setup/hold 监视器捕获。
+- [ ] **I2.8** 用实测 PCLK/消隐/极性重跑完整帧仿真。
+
+### I3. 配置与上板
+
+- [x] **I3.1** 实现 `ov5640_cfg.v` + `ov5640_cfg_rom.v`：RGB565 表、
+  显式 `0x4740=0x22`、`0x503D` 彩条模式、关键寄存器回读。
+- [x] **I3.2** 配置仿真/回读回归通过（`tb_ov5640_bringup.v`，DIV=10）；
+  原有 `tb_top_cam_id.v`（DIV=250）仍通过。
+- [x] **I3.3** 新建 `top_dvp_test.v`、`top_dvp_test.adc/.sdc`、构建脚本；
+  PCLK 作为真实时钟约束（实测 **50MHz**），TD 构建通过
+  （Setup +10.245 ns，Hold +0.054 ns），位流 `build/bitstream/top_dvp_test.bit`。
+  证据：`verification/static/top_dvp_test_build_2026-10-26.md`。
+- [x] **I3.4** **上板三通道：通过**。通道映射 Ch0=PCLK、Ch1=VSYNC、
+  Ch2=HREF；实测 PCLK 50MHz、HREF 15kHz/66.67µs/40µs 高（2000 PCLK）、
+  VSYNC 30Hz/33.33ms/低有效、每帧约 500 行。
+  证据：`verification/board/evidence/20261026_dvp_three_channel/`。
+- [x] **I3.4a** 已按实测修正：`0x4740=0x22`、`VSYNC_ACTIVE_HIGH=0`、
+  `EXPECTED_PIX=2000`、PCLK SDC=50MHz；DVP 极性仿真组合通过；
+  位流重建（Setup +10.245 ns，Hold +0.054 ns）。
+  遗留：HREF 高 2000 字节 vs 640 像素有源 1280 字节，待彩条/D0–D7 解释。
+- [ ] **I3.4b** 新位流复测：**LED4 仍亮**。三通道时序通过，但行/场计数
+  仍不匹配；最可能是 `EXPECTED_LINES=480` 与实际约 500 行/帧不符
+  （HREF 可能在垂直消隐期间也有脉冲），或某行错误 sticky。待定位。
+- [ ] **I3.5** 上板：彩条模式下抓 D0–D7，确认字节序和颜色。
+- [ ] **I3.6** 上板：帧/行/像素计数稳定，LED/LA 证据归档。
+
 ## 待确认（阻塞项）
 
 | # | 问题 | 影响 | 状态 |
@@ -141,7 +195,7 @@
 | Q2 | 实物模组 P1 的 Pin 1 方向是否与 README/官方照片一致？ | 摄像头侧可能反接 | 官方照片已佐证，实物待确认 |
 | Q3 | SCCB 上拉是否足够？ | 否则无法通信 | 首测已启用 FPGA 内部上拉；若 LED1 不亮则补 4.7 kΩ |
 | Q4 | RESET/PWDN 是否需要外部默认电阻？ | 上电状态不确定 | 待决定 |
-| Q5 | PCLK 实际频率/OV5640 输出分辨率？ | 时序约束与 HDMI 时钟 | 待定 |
+| Q5 | PCLK 实际频率/OV5640 输出分辨率？ | 时序约束与 HDMI 时钟 | PCLK=50MHz 已实测；640x480 回读通过，但 HREF 高 2000 字节 vs 1280 有源字节待彩条确认 |
 | Q6 | HDMI 目标分辨率/刷新率？ | 时钟与带宽规划 | 待定 |
 | Q7 | 是否使用 DDR 帧缓存？ | 架构与资源 | 待定 |
 | Q8 | 板卡原理图是否允许公开再分发？ | 决定 PDF 是否入库 | 待确认 |
@@ -149,16 +203,25 @@
 ## 下一步动作（按顺序）
 
 1. ~~Chip ID 上板验证~~ —— 已完成（LED1 闪，LED2/3/4 常亮，0x5640）。
-2. 补齐 `wiring-check.md` 的实测记录和照片/波形证据。
-3. 下一阶段：DVP 接收。先读 `docs/project/dvp-handoff.md`，再只捕获
-   PCLK/VSYNC/HREF，验证极性和行/场计数。
-4. 再加入 D0–D7，验证第一个像素字节和一行数据。
-5. 最后做 HDMI 时序与显示；DDR 帧缓存暂不引入。
+2. ~~DVP 采集 RTL + 真实时序仿真~~ —— 已完成；见
+   `verification/static/dvp_capture_sim_2026-10-26.md`。
+3. ~~配置模块 `ov5640_cfg.v`~~ —— 已完成并通过配置/回读仿真。
+4. ~~上板三通道~~ —— **通过**：PCLK 50MHz、HREF 高有效、
+   VSYNC 低有效、15kHz 行 / 30Hz 帧。已按实测修正 `0x4740=0x22`、
+   `VSYNC_ACTIVE_HIGH=0`、`EXPECTED_PIX=2000`、SDC 50MHz。
+5. **下一步**：重建 `COLOR_BAR=1` 位流，抓 D0–D7，确认 RGB565 字节序，
+   并解释 HREF 高 2000 字节 vs 640 像素有源 1280 字节。
+6. 最后做 HDMI 时序与显示；DDR 帧缓存暂不引入。
 
 ## 变更记录
 
 | 日期 | 内容 |
 |---|---|
+| 2026-10-26 | 新位流（`0x4740=0x22`、50MHz、`EXPECTED_PIX=2000`）复测：**LED4 仍亮**。三通道时序通过，但行/场计数仍不匹配；最可能是 `EXPECTED_LINES=480` 与实际约 500 行/帧不符，或某行错误 sticky。待定位。 |
+| 2026-10-26 | **DVP 三通道验证通过**：Ch0=PCLK、Ch1=VSYNC、Ch2=HREF；PCLK **50MHz**、HREF **高有效**（15kHz，66.67µs，40µs 高 = 2000 PCLK）、VSYNC **低有效**（30Hz，33.33ms）、约 500 行/帧。按实测修正 `0x4740=0x22`、`VSYNC_ACTIVE_HIGH=0`、`EXPECTED_PIX=2000`、PCLK SDC=50MHz；DVP 极性仿真组合通过；位流重建（Setup +10.245ns，Hold +0.054ns，800 slices）。遗留：HREF 高 2000 字节 vs 640 像素有源 1280 字节，待彩条/D0–D7。 |
+| 2026-10-26 | **DVP 三通道上板初步捕获**：`top_dvp_test.bit` 已烧录；LED1/LED3 正常闪烁，LED2/LED4 常亮。LED2=`cfg_ok`，LED3=帧计数翻转，LED4=几何/错误状态。LA 初步显示约 30Hz 帧、15kHz 行、疑似 50MHz PCLK；通道映射、PCLK 真实频率和 VSYNC 极性仍需同窗同标确认。证据：`verification/board/evidence/20261026_dvp_three_channel/`。 |
+| 2026-10-26 | **配置链路与 DVP 上板顶层完成**：新增 `ov5640_cfg.v`、生成的 `ov5640_cfg_rom.v`（249 条，含 `0x4740=0x23`）、`ov5640_bringup.v`、`top_dvp_test.v`、约束与构建脚本。配置/回读仿真通过（`tb_ov5640_bringup.v`）；TD 6.2.1 构建通过（Setup WNS +11.108 ns，Hold WNS +0.050 ns，813 slices），位流 `build/bitstream/top_dvp_test.bit`。PCLK 约束 48MHz 为**临时值**，待实测。证据：`verification/static/top_dvp_test_build_2026-10-26.md`；上板步骤：`verification/board/bringup-dvp-three-channel.md`。 |
+| 2026-10-26 | **DVP 采集仿真通过**：新增 `async_fifo_gray.v`、`dvp_capture.v`、`dvp_status_monitor.v`、`tb_dvp_capture.v`；24MHz/48MHz、16 行快速回归和 480 行完整帧均通过（`bytes_err=0`、setup/hold 0）；错误沿变异被 setup/hold 监视器捕获。登记 OV5640 规格书 V2.03 和 ALIENTEK V1.0 的在线引用与再分发约束；发现 `0x4740` 默认极性矛盾，计划显式写 `0x23`。证据：`verification/static/dvp_capture_sim_2026-10-26.md`。 |
 | 2026-10-24 | 建立 `AGENTS.md`、`.claude/skills/fpga-bringup/SKILL.md`、`CLAUDE.md` 指针；清理 TD 临时日志。 |
 | 2026-10-24 | **上板验证通过**：LED1 闪烁，LED2/3/4 常亮，SCCB 读到 Chip ID 0x5640；逻辑分析仪解码 `0x3C W 30 0A [SR] 0x3C R 56` / `30 0B ... 40`，证据归档到 `verification/board/evidence/20261024_sccb_chip_id/`。 |
 | 2026-10-24 | 修复 SCCB master 漏采 1 周期 start 脉冲的问题（新增 `start_pending` 锁存）；testbench 改用 DIV=250 复测通过；重建位流，WNS +12.684 ns。 |
