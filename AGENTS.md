@@ -22,7 +22,11 @@ Tools: Anlogic Tang Dynasty **6.2.1**; ModelSim SE-64 2020.4 for simulation.
 | Schematic / wiring documentation | Done |
 | Minimal TD project + build flow | Done |
 | SCCB Chip ID read | **Verified on board: 0x5640** |
-| DVP capture | Not started |
+| DVP capture RTL + simulation | **Passed (24 MHz full 480-line frame; 48/50 MHz quick regressions)** |
+| RGB565 config + readback | **Simulation passed; TD build passed** |
+| DVP board three-channel | **Passed (timing): PCLK 50 MHz, HREF active high, VSYNC active low, 30 fps** |
+| DVP counter sanity (LED4) | **Open: LED4 still on after the 2000-byte rebuild** |
+| DVP color bar / D0–D7 | Not started (next) |
 | HDMI output | Not started |
 | DDR frame buffer | Not started |
 
@@ -34,7 +38,26 @@ Board evidence:
   - `0x3C W 0x30 0x0B [SR] 0x3C R 0x40 NA`
 - Evidence: `verification/board/evidence/20261024_sccb_chip_id/`
 
-**Next milestone: DVP.** See §10.
+DVP capture simulation (not board evidence):
+`verification/static/dvp_capture_sim_2026-10-26.md`.
+Config/readback + TD build:
+`verification/static/top_dvp_test_build_2026-10-26.md`.
+
+**DVP three-channel verified on board:** PCLK 50 MHz, HREF active high
+(15 kHz, 40 µs high = 2000 PCLK), VSYNC active low (30 Hz, 33.33 ms),
+~500 lines/frame. Evidence:
+`verification/board/evidence/20261026_dvp_three_channel/`.
+
+**Open:** after re-programming the rebuilt bitstream (`0x22`, 50 MHz,
+`EXPECTED_PIX=2000`), **LED4 is still on**. The timing validation passed, but
+the line/frame counter still mismatches; likely `EXPECTED_LINES=480` vs ~500
+HREF lines/frame, or a sticky line error.
+
+**Next: diagnose LED4, then color bar + D0–D7 byte order**, and resolve why
+HREF high carries 2000 bytes while the configured active RGB565 width is 640
+pixels (1280 bytes). Bitstream: `build/bitstream/top_dvp_test.bit`.
+Procedure: `verification/board/bringup-dvp-three-channel.md`.
+See also §10 and `docs/camera/README.md`.
 
 ## 3. Read order
 
@@ -105,6 +128,17 @@ Outputs (git-ignored):
 - `build/bitstream/top_cam_id_route.qor`
 - `build/bitstream/top_cam_id_final_timing.rpt`
 
+DVP config/capture top:
+
+```bat
+fpga\scripts\build_top_dvp_test.bat
+```
+
+Outputs: `build/bitstream/top_dvp_test.bit`, `top_dvp_test_route.qor`,
+`top_dvp_test_final_timing.rpt`. `cam_pclk` is constrained at the measured
+**50 MHz**; input delays (10/2 ns) are still provisional. Latest QoR:
+Setup +10.245 ns, Hold +0.054 ns, 800 slices.
+
 The script calls `td_commands_prompt.exe` and runs
 `read_hdl -> read_adc -> optimize_rtl -> read_sdc -> optimize_gate -> place -> route -> bitgen`.
 
@@ -122,6 +156,13 @@ vsim -c -do "run -all; quit" work.tb_top_cam_id
 
 Expected: `TB: PASS - Chip ID matched (led=1110, id_hi=56, id_lo=40)`.
 The testbench uses **SCCB_DIV=250** to match hardware timing.
+
+Config/readback: `fpga/sim/tb/tb_ov5640_bringup.v` (DIV=10 for speed) checks
+0x4300=0x61, 0x4740=0x22, 640x480 geometry and readback.
+DVP capture: `fpga/sim/tb/tb_dvp_capture.v`; results in
+`verification/static/dvp_capture_sim_2026-10-26.md`. It now parameterises
+HREF/VSYNC polarity; active-high, active-low VSYNC, and both-low combinations
+pass (quick 16-line runs).
 
 ### Program
 
@@ -228,14 +269,31 @@ Three rules for this stage:
 
 Order of work:
 
-1. Probe `PCLK (F14/J2-7)`, `VSYNC (K16/J2-21)`, `HREF (K17/J2-20)` with the
-   camera in its current default state. Record frequency, polarity, and timing.
-2. If there is no usable output, add OV5640 register configuration over SCCB
-   (target format/resolution to be confirmed; likely RGB565 640x480).
-3. Implement DVP receiver: PCLK sampling edge, VSYNC frame boundary, HREF line
-   boundary, line/pixel counters, CDC to the system domain.
-4. Verify with stable frame/line/pixel counters and a known test pattern before HDMI.
+1. **Done:** DVP receiver (`dvp_capture.v`), asynchronous event FIFO, 50 MHz
+   monitor, and a real-timing testbench. See
+   `verification/static/dvp_capture_sim_2026-10-26.md`.
+2. **Done:** RGB565 configuration/readback (`ov5640_cfg.v`,
+   `ov5640_cfg_rom.v`), explicit `0x4740=0x22`, `top_dvp_test.v`, constraints,
+   TD build and bitstream. See
+   `verification/static/top_dvp_test_build_2026-10-26.md`.
+3. **Three-channel passed (2026-10-26):** PCLK 50 MHz; HREF active high,
+   15 kHz / 66.67 µs / 40 µs high = 2000 PCLK; VSYNC active low, 30 Hz /
+   33.33 ms; ~500 lines/frame. Config `0x4740=0x22`; capture uses
+   `HREF_ACTIVE_HIGH=1`, `VSYNC_ACTIVE_HIGH=0`; SDC uses 50 MHz.
+   Evidence: `verification/board/evidence/20261026_dvp_three_channel/`.
+4. **Next:** rebuild with `COLOR_BAR=1`, probe D0–D7, verify RGB565 byte order,
+   and resolve the 2000-byte HREF-high vs 1280-byte active width. Then HDMI.
 5. HDMI output after DVP data is stable. DDR frame buffer is out of scope for now.
+
+Polarity (measured 2026-10-26): **HREF active high, VSYNC active low**. The
+configuration writes `0x4740=0x22`; the earlier `0x23` (VSYNC active high)
+did not match the LA waveform. The `dvp_capture` instance uses
+`HREF_ACTIVE_HIGH=1`, `VSYNC_ACTIVE_HIGH=0`. See
+`docs/camera/README.md` §2.1. Do not change these three places independently.
+
+References: datasheet and ALIENTEK links are recorded in
+`docs/camera/README.md`; the PDF and third-party code stay out of the public
+repository.
 
 Acceptance for DVP: repeatable frame/line counters and data that matches a known
 camera configuration, with real-timing simulation + board evidence.
@@ -249,15 +307,29 @@ TASKS.md                          tasks / blockers / change log
 .claude/skills/fpga-bringup/      reusable build/debug skill
 docs/hardware/wiring.md           canonical wiring/pin table
 docs/project/dvp-handoff.md       DVP stage handoff and warnings
+docs/camera/README.md             OV5640 refs, registers, redistribution rules
 docs/hardware/*.pdf               vendor schematics (local, ignored)
 fpga/rtl/top/top_cam_id.v         current bring-up top
 fpga/rtl/camera/sccb_master.v     SCCB master
 fpga/rtl/camera/ov5640_id_reader.v power-up + ID read
-fpga/constraints/top_cam_id.adc   current pin constraints
-fpga/constraints/top_cam_id.sdc   50 MHz clock
-fpga/scripts/build_top_cam_id.*   validated build flow
+fpga/rtl/camera/dvp_capture.v     PCLK-domain DVP capture + counters
+fpga/rtl/camera/dvp_status_monitor.v  50 MHz event monitor
+fpga/rtl/common/async_fifo_gray.v Gray-pointer CDC event FIFO
+fpga/rtl/camera/ov5640_cfg.v      RGB565 config + readback sequencer
+fpga/rtl/camera/ov5640_cfg_rom.v  generated config table (249 entries)
+fpga/rtl/camera/ov5640_bringup.v  power/ID/config wrapper
+fpga/rtl/top/top_dvp_test.v       DVP board bring-up top
+fpga/constraints/top_cam_id.adc   minimal SCCB/ID constraints
+fpga/constraints/top_dvp_test.adc/.sdc  DVP board constraints
+fpga/scripts/build_top_cam_id.*   SCCB/ID build flow
+fpga/scripts/build_top_dvp_test.* DVP board build flow
 fpga/sim/tb/tb_top_cam_id.v       SCCB/ID testbench
+fpga/sim/tb/tb_ov5640_bringup.v   config/readback testbench
+fpga/sim/tb/tb_dvp_capture.v      real-timing DVP testbench
 verification/board/bringup-sccb-id.md
+verification/board/bringup-dvp-three-channel.md
 verification/board/evidence/      board captures
-verification/static/              build/timing summaries
+verification/static/              build/timing/simulation summaries
+verification/static/dvp_capture_sim_2026-10-26.md
+verification/static/top_dvp_test_build_2026-10-26.md
 ```
