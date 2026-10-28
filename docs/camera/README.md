@@ -36,7 +36,7 @@
 | `0x503D` | `0x80` | 使能 Pre-ISP 彩条（bit7=1，bit[3:2]=00 标准 8 色条，bit[1:0]=00 color bar） | 表 7-21 |
 | `0x503D` | `0x00` | 关闭彩条，正常图像 | 表 7-21 |
 | `0x4740` | 默认 `0x20` | bit5=1 PCLK 高有效；bit1=0 HREF **低有效**；bit0=0 VSYNC **低有效** | 表 7-18 sheet 3 |
-| `0x4740` | `0x23` | PCLK/HREF 高有效；VSYNC **低有效**（实测：空闲高、66.665 µs 低脉冲） | 2026-10-26 LA 实测 |
+| `0x4740` | `0x23` | PCLK 高有效；HREF 按 datasheet 高有效（引脚极性待确认）；VSYNC **低有效**（实测：空闲高、66.665 µs 低脉冲） | 2026-10-26 LA 实测 |
 | `0x4740` | `0x22` | PCLK/HREF 按 datasheet 高有效；VSYNC **高有效**（实测：空闲低、66.665 µs 高脉冲；与 datasheet bit0 相反）。HREF 引脚极性待 D0–D7 两相对比确认 | 2026-10-26 LA 实测 |
 | `0x3036` | `0x3C` | PLL multiplier（参考表值，未证明等于 24MHz PCLK） | ALIENTEK V1.0 |
 | `0x3035` | `0x11` | 系统时钟分频等（参考表值） | ALIENTEK V1.0 |
