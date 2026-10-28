@@ -46,7 +46,7 @@ module tb_ov5640_bringup;
     localparam integer V_PIX     = 480;
     localparam integer H_TOTAL   = 1600;
     localparam integer V_TOTAL   = 1000;
-    localparam integer COLOR_BAR = 0;
+    localparam integer COLOR_BAR = 1;   // diagnostic build: color bar on
 
     ov5640_bringup #(
         .SCCB_DIV           (10),       // fast test; protocol TB uses 250
