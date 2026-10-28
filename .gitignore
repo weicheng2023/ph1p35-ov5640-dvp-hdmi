@@ -36,6 +36,7 @@ build/
 .lock.f
 *.bak
 *.tmp
+*.dmp
 
 # ---------- Python 工具 ----------
 __pycache__/
@@ -57,3 +58,7 @@ __pycache__/
 docs/camera/ATK-MC5640_V1.2.pdf
 docs/hardware/DS1300_PH1P_Datasheet.pdf
 docs/hardware/HX1P35B_FT_40P_*.pdf
+
+# ---------- 逻辑分析仪原始导出（大文件，仅本地） ----------
+# 0.5 s @ 200 MHz × 3 ch 约 2.3 GB；分析摘要入库，原始 CSV 不入库。
+verification/LA/*.csv

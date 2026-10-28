@@ -2,7 +2,7 @@
 
 > **用法**：完成一项将 `[ ]` 改为 `[x]`，并在“变更记录”中注明日期与证据。
 > **状态**：`[x]` 已完成｜`[~]` 进行中｜`[ ]` 未开始｜`[!]` 阻塞/待确认
-> **最后更新**：2026-10-26
+> **最后更新**：2026-10-28
 
 ## 0. 当前结论
 
@@ -26,7 +26,7 @@
 | 电气检查 | **待用户完成** | `verification/board/wiring-check.md` |
 | FPGA TD 环境验证 | **构建已完成，下载待验证** | TD 6.2.1 综合/布局布线/位流通过 |
 | SCCB 初始化与 Chip ID | **已上板通过（用户实测 LED2/3/4 常亮）** | `top_cam_id`、`bringup-sccb-id.md` |
-| DVP 采集 | **三通道通过；LED4 计数不匹配待定位；下一步彩条/D0–D7** | PCLK 50MHz、HREF 高有效、VSYNC 低有效、30fps；LED4 仍亮；见 `verification/board/evidence/20261026_dvp_three_channel/` |
+| DVP 采集 | **三通道时序通过；2026-10-28 11 通道尝试失败（HREF/VSYNC 不稳定）；HREF 极性 A/B 待 D0–D7 确认** | PCLK **48.000MHz**、VSYNC 30fps/0x22 高有效、HREF 15kHz；LED4 只查长度；见 `verification/board/evidence/20261028_dvp_11ch/` |
 | HDMI 显示 | **待开发/待测试** | 未开始 |
 | 整体系统集成 | **待开发/待测试** | 以上均未完成 |
 
@@ -144,8 +144,8 @@
 - [x] **I1.3** 核对 `0x4300=0x61`：RGB565，输出序列 `0x1`，高字节在前。
 - [x] **I1.4** 核对 `0x503D=0x80`：Pre-ISP 彩条使能；`0x00` 正常图像。
 - [x] **I1.5** 发现 `0x4740` 默认值 `0x20` 与 ALIENTEK 代码的 HREF/VSYNC
-  假设冲突；2026-10-26 实测确认 **HREF 高有效、VSYNC 低有效**，
-  显式写 `0x4740=0x22` 并回读确认。
+  假设冲突；2026-10-26 实测确认 `0x22` 的 **VSYNC 高有效**（与 datasheet
+  bit0 相反）；HREF 引脚极性仍 A/B 未定，显式写 `0x4740=0x22` 并回读。
 - [ ] **I1.6** 把实测 PCLK/HREF/VSYNC 参数写入 `verification/` 并更新仿真。
 
 ### I2. RTL 与仿真
@@ -173,19 +173,40 @@
   PCLK 作为真实时钟约束（实测 **50MHz**），TD 构建通过
   （Setup +10.245 ns，Hold +0.054 ns），位流 `build/bitstream/top_dvp_test.bit`。
   证据：`verification/static/top_dvp_test_build_2026-10-26.md`。
-- [x] **I3.4** **上板三通道：通过**。通道映射 Ch0=PCLK、Ch1=VSYNC、
-  Ch2=HREF；实测 PCLK 50MHz、HREF 15kHz/66.67µs/40µs 高（2000 PCLK）、
-  VSYNC 30Hz/33.33ms/低有效、每帧约 500 行。
+- [x] **I3.4** **上板三通道：时序通过**。通道映射 Ch0=PCLK、Ch1=VSYNC、
+  Ch2=HREF；实测 PCLK **48.000MHz**、HREF 15kHz/66.665µs/高 40µs
+  （1920 PCLK）/低 26.665µs（1280 PCLK）、VSYNC 30Hz/33.33ms/`0x22`
+  高有效、每帧 **480** 行。HREF 极性 A/B 仍待 D0–D7 确认。
   证据：`verification/board/evidence/20261026_dvp_three_channel/`。
-- [x] **I3.4a** 已按实测修正：`0x4740=0x22`、`VSYNC_ACTIVE_HIGH=0`、
-  `EXPECTED_PIX=2000`、PCLK SDC=50MHz；DVP 极性仿真组合通过；
-  位流重建（Setup +10.245 ns，Hold +0.054 ns）。
-  遗留：HREF 高 2000 字节 vs 640 像素有源 1280 字节，待彩条/D0–D7 解释。
-- [ ] **I3.4b** 新位流复测：**LED4 仍亮**。三通道时序通过，但行/场计数
-  仍不匹配；最可能是 `EXPECTED_LINES=480` 与实际约 500 行/帧不符
-  （HREF 可能在垂直消隐期间也有脉冲），或某行错误 sticky。待定位。
-- [ ] **I3.5** 上板：彩条模式下抓 D0–D7，确认字节序和颜色。
-- [ ] **I3.6** 上板：帧/行/像素计数稳定，LED/LA 证据归档。
+- [x] **I3.4a** 2026-10-26 的 2.3GB LA CSV 证明：**`0x22` 是 VSYNC 高有效**
+  （空闲低、66.665µs 高脉冲），**`0x23` 是低有效**；`0x4740[0]` 的实际
+  效果与 datasheet 相反。13:16 位流的 `0x22` + `VSYNC_ACTIVE_HIGH=0`
+  配对错误；16:24 诊断改为 `0x22`+1。`EXPECTED_PIX=2000` 是 50MHz
+  假设下的旧值，按 48MHz 应为 1920（高）/1280（低）。
+- [x] **I3.4b** LA CSV 已定位 LED4 原因：
+  1. VSYNC 极性配对错误（见 I3.4a）；
+  2. HREF 每帧有一次 **1.373 ms 长高**（垂直消隐），开始于 VSYNC 上升前
+     240µs、结束于 VSYNC 下降后 1.066ms，横跨 VSYNC 脉冲；被当成
+     65920 字节的长行，且 `vsync_mid_line` 每帧置位。
+  每帧 HREF 上升沿实为 **480**，不是 500；`EXPECTED_LINES=480` 正确。
+- [~] **I3.5** **彩条 + HREF 低有效诊断位流**已构建并通过仿真：
+  **2026-10-26 16:24:00**，SHA-256 `506e01ad...cca07a`；
+  `COLOR_BAR=1`、`0x4740=0x22`、`VSYNC_ACTIVE_HIGH=1`、
+  `HREF_ACTIVE_HIGH=0`、`EXPECTED_PIX=1280`、`EXPECTED_LINES=480`；
+  Setup +10.381 ns / Hold +0.038 ns / 800 slices。
+  原始二进制已被 2026-10-28 12:33 构建覆盖；同 RTL/QoR 重建为
+  `top_dvp_test_20261026_rebuild.bit`（SHA `b6df6c18...`，非逐 bit 相同）。
+- [x] **I3.5a** 用户报告 16:24 位流 LED4 熄灭；**但 LED4 只检查行长度/
+  行数，不检查像素值**：低相位 1280 PCLK 与高相位“1280 有效 + 640 dummy”
+  都能让 `EXPECTED_PIX=1280` 通过。HREF 极性 A/B 仍未定，需 D0–D7 两相
+  彩条对比。
+- [ ] **I3.5b** **2026-10-28 11 通道尝试失败**：13:58 HREF 包络
+  15 kHz/1280 字节但 VSYNC 无效、D0–D7 全 0；14:36 HREF 单测 29.53 kHz。
+  推测摄像头复位/重插后回到默认 1280×960，FPGA 未重跑 SCCB；接地可解释
+  毛刺但不能单独解释稳定频率。证据：
+  `verification/board/evidence/20261028_dvp_11ch/`。
+- [ ] **I3.6** 上板：整机断电重上电，烧重建位流，抓 PCLK/HREF/VSYNC +
+  D0–D7 两相彩条；帧/行/像素计数稳定后才归档。
 
 ## 待确认（阻塞项）
 
@@ -195,7 +216,7 @@
 | Q2 | 实物模组 P1 的 Pin 1 方向是否与 README/官方照片一致？ | 摄像头侧可能反接 | 官方照片已佐证，实物待确认 |
 | Q3 | SCCB 上拉是否足够？ | 否则无法通信 | 首测已启用 FPGA 内部上拉；若 LED1 不亮则补 4.7 kΩ |
 | Q4 | RESET/PWDN 是否需要外部默认电阻？ | 上电状态不确定 | 待决定 |
-| Q5 | PCLK 实际频率/OV5640 输出分辨率？ | 时序约束与 HDMI 时钟 | PCLK=50MHz 已实测；640x480 回读通过，但 HREF 高 2000 字节 vs 1280 有源字节待彩条确认 |
+| Q5 | PCLK 实际频率/OV5640 输出分辨率？ | 时序约束与 HDMI 时钟 | PCLK=**48.000MHz**、480 行/帧、HREF 高 1920 PCLK/低 1280 PCLK；0x22=VSYNC 高有效、0x23=低有效；**HREF 极性 A/B 待 D0–D7 彩条**；1.373ms 消隐长高已测 |
 | Q6 | HDMI 目标分辨率/刷新率？ | 时钟与带宽规划 | 待定 |
 | Q7 | 是否使用 DDR 帧缓存？ | 架构与资源 | 待定 |
 | Q8 | 板卡原理图是否允许公开再分发？ | 决定 PDF 是否入库 | 待确认 |
@@ -206,17 +227,23 @@
 2. ~~DVP 采集 RTL + 真实时序仿真~~ —— 已完成；见
    `verification/static/dvp_capture_sim_2026-10-26.md`。
 3. ~~配置模块 `ov5640_cfg.v`~~ —— 已完成并通过配置/回读仿真。
-4. ~~上板三通道~~ —— **通过**：PCLK 50MHz、HREF 高有效、
-   VSYNC 低有效、15kHz 行 / 30Hz 帧。已按实测修正 `0x4740=0x22`、
-   `VSYNC_ACTIVE_HIGH=0`、`EXPECTED_PIX=2000`、SDC 50MHz。
-5. **下一步**：重建 `COLOR_BAR=1` 位流，抓 D0–D7，确认 RGB565 字节序，
-   并解释 HREF 高 2000 字节 vs 640 像素有源 1280 字节。
-6. 最后做 HDMI 时序与显示；DDR 帧缓存暂不引入。
+4. ~~上板三通道~~ —— **时序通过**：PCLK **48.000MHz**、VSYNC 高有效
+   （`0x22`）、15kHz 行 / 30Hz 帧。旧记录里的 50MHz/2000 PCLK 已按
+   48MHz 修正为 1920 PCLK 高 / 1280 PCLK 低。
+5. **16:24 诊断设计**：`0x22` + `VSYNC_ACTIVE_HIGH=1` +
+   `HREF_ACTIVE_HIGH=0` + `EXPECTED_PIX=1280` + 480 行 + `COLOR_BAR=1`。
+   LED4 熄灭只证明低相位 1280 PCLK；**HREF 极性 A/B 未定**。
+6. **2026-10-28 11 通道尝试失败**：先整机断电重上电、烧重建位流，
+   抓 PCLK/HREF/VSYNC，再抓 D0–D7 低/高两相彩条；在定极性前不改配置。
+7. 最后做 HDMI 时序与显示；DDR 帧缓存暂不引入。
 
 ## 变更记录
 
 | 日期 | 内容 |
 |---|---|
+| 2026-10-28 | **11 通道尝试失败，本分支只 PR 不合并**：13:58 采集中 PCLK=**48.000MHz**、HREF 包络 15kHz/1280 字节（低有效假设），但 CH2 高相位有 12–16ns PCLK 串扰、CH1 只有 4ns 尖峰不是 VSYNC、D0–D7 全 0；14:36 HREF 单测变成 **29.53kHz**（30.856µs 高/3.002µs 低/33.858µs 周期）。推测摄像头重插/复位后回到默认 1280×960、FPGA 未重跑 SCCB；接地可解释毛刺但不能单独解释稳定频率。**HREF 极性 A/B 仍未定**：16:24 LED4 熄灭只证明 1280 长度，不证明低相位是有效数据。证据：`verification/board/evidence/20261028_dvp_11ch/`。位流：12:33 失败构建 SHA `893dc3fa...` 已复制保存；16:24 原始 SHA `506e01ad...` 已被覆盖，同 RTL/QoR 重建为 `top_dvp_test_20261026_rebuild.bit`（SHA `b6df6c18...`，非逐 bit 相同）。 |
+| 2026-10-26 | **彩条 + HREF 低有效诊断位流**：`0x4740=0x22`、`VSYNC_ACTIVE_HIGH=1`、`HREF_ACTIVE_HIGH=0`、`EXPECTED_PIX=1280`、`EXPECTED_LINES=480`、`COLOR_BAR=1`。配置仿真 PASS（`0x503D=0x80`）；HREF 低/VSYNC 高 50MHz 1280B 采集仿真 PASS；TD 构建 16:24:00，Setup +10.381ns / Hold +0.038ns / 800 slices，SHA-256 `506e01ad...`。预期：1.373ms 消隐长高不再计入；HREF 低相位约 1333 PCLK，LED4 可能因 1333 vs 1280 仍亮。 |
+| 2026-10-26 | **2.3GB LA CSV 分析**：新 `0x22` 的 VSYNC 为**高有效**（空闲低、66.665 µs 高脉冲、33.333 ms 周期）；旧 `0x23` 为低有效——`0x4740[0]` 实际效果与 datasheet 相反。HREF 15 kHz/66.665 µs，典型高 40 µs = 2000 PCLK；每帧 **480** 个 HREF 上升沿；每帧一次 **1.373 ms** HREF 长高（垂直消隐），开始于 VSYNC 上升前 240 µs、结束于下降后 1.066 ms，横跨 VSYNC。**LED4 原因=极性配对错误 + 长高被当成 65920 字节行/`vsync_mid_line`，不是 480 vs 500**。 |
 | 2026-10-26 | 新位流（`0x4740=0x22`、50MHz、`EXPECTED_PIX=2000`）复测：**LED4 仍亮**。三通道时序通过，但行/场计数仍不匹配；最可能是 `EXPECTED_LINES=480` 与实际约 500 行/帧不符，或某行错误 sticky。待定位。 |
 | 2026-10-26 | **DVP 三通道验证通过**：Ch0=PCLK、Ch1=VSYNC、Ch2=HREF；PCLK **50MHz**、HREF **高有效**（15kHz，66.67µs，40µs 高 = 2000 PCLK）、VSYNC **低有效**（30Hz，33.33ms）、约 500 行/帧。按实测修正 `0x4740=0x22`、`VSYNC_ACTIVE_HIGH=0`、`EXPECTED_PIX=2000`、PCLK SDC=50MHz；DVP 极性仿真组合通过；位流重建（Setup +10.245ns，Hold +0.054ns，800 slices）。遗留：HREF 高 2000 字节 vs 640 像素有源 1280 字节，待彩条/D0–D7。 |
 | 2026-10-26 | **DVP 三通道上板初步捕获**：`top_dvp_test.bit` 已烧录；LED1/LED3 正常闪烁，LED2/LED4 常亮。LED2=`cfg_ok`，LED3=帧计数翻转，LED4=几何/错误状态。LA 初步显示约 30Hz 帧、15kHz 行、疑似 50MHz PCLK；通道映射、PCLK 真实频率和 VSYNC 极性仍需同窗同标确认。证据：`verification/board/evidence/20261026_dvp_three_channel/`。 |

@@ -2,7 +2,7 @@
 
 > Canonical project guide for any AI/agent session working in this repository.
 > Read this before changing RTL, constraints, docs, or making verification claims.
-> **Last updated: 2026-10-24**
+> **Last updated: 2026-10-28**
 
 ## 1. Mission
 
@@ -24,9 +24,11 @@ Tools: Anlogic Tang Dynasty **6.2.1**; ModelSim SE-64 2020.4 for simulation.
 | SCCB Chip ID read | **Verified on board: 0x5640** |
 | DVP capture RTL + simulation | **Passed (24 MHz full 480-line frame; 48/50 MHz quick regressions)** |
 | RGB565 config + readback | **Simulation passed; TD build passed** |
-| DVP board three-channel | **Passed (timing): PCLK 50 MHz, HREF active high, VSYNC active low, 30 fps** |
-| DVP counter sanity (LED4) | **Open: LED4 still on after the 2000-byte rebuild** |
-| DVP color bar / D0–D7 | Not started (next) |
+| DVP board three-channel | **Passed (timing): PCLK 48.000 MHz; VSYNC active high with `0x22`; HREF 15 kHz** |
+| DVP counter sanity (LED4) | 16:24 `HREF_ACTIVE_HIGH=0` + 1280 LED4 off (user report), but **LED4 checks length only, not pixel data** |
+| HREF polarity | **Unresolved A/B:** low phase = 1280 PCLK; high = 1920 PCLK. Must compare D0–D7 in both phases |
+| DVP diagnostic build (HREF low + color bar) | Original 16:24 SHA `506e01ad…` overwritten; rebuilt same RTL/QoR as `top_dvp_test_20261026_rebuild.bit` (SHA `b6df6c18…`) |
+| DVP 11-channel / color bar (2026-10-28) | **Failed:** HREF/VSYNC unstable; D0–D7 not captured; see evidence |
 | HDMI output | Not started |
 | DDR frame buffer | Not started |
 
@@ -43,21 +45,56 @@ DVP capture simulation (not board evidence):
 Config/readback + TD build:
 `verification/static/top_dvp_test_build_2026-10-26.md`.
 
-**DVP three-channel verified on board:** PCLK 50 MHz, HREF active high
-(15 kHz, 40 µs high = 2000 PCLK), VSYNC active low (30 Hz, 33.33 ms),
-~500 lines/frame. Evidence:
+**DVP three-channel verified on board (timing):** PCLK **48.000 MHz**, not
+50 MHz. The 0.5 s capture has 24,000,131 rises = 48.000 MHz; 20 ns was the
+sampling quantization. VSYNC is 30 Hz / 33.333 ms; `0x22` produces
+**active-high** VSYNC (idle low, 66.665 µs high), while `0x23` produces
+**active-low**. The `0x4740[0]` effect is **inverted** relative to the
+datasheet on this module. HREF is 15 kHz / 66.665 µs; high 40 µs =
+**1920 PCLK**, low 26.665 µs = **1280 PCLK**. Line count is **480**
+HREF rises/frame, not 500. Evidence:
 `verification/board/evidence/20261026_dvp_three_channel/`.
 
-**Open:** after re-programming the rebuilt bitstream (`0x22`, 50 MHz,
-`EXPECTED_PIX=2000`), **LED4 is still on**. The timing validation passed, but
-the line/frame counter still mismatches; likely `EXPECTED_LINES=480` vs ~500
-HREF lines/frame, or a sticky line error.
+**HREF polarity is still unresolved (A/B).** LED4 off on the 16:24 build
+(`HREF_ACTIVE_HIGH=0`, `EXPECTED_PIX=1280`, user report) only proves the
+line length/line count match, not that pixels are valid. Two interpretations
+both pass the length check:
 
-**Next: diagnose LED4, then color bar + D0–D7 byte order**, and resolve why
-HREF high carries 2000 bytes while the configured active RGB565 width is 640
-pixels (1280 bytes). Bitstream: `build/bitstream/top_dvp_test.bit`.
-Procedure: `verification/board/bringup-dvp-three-channel.md`.
-See also §10 and `docs/camera/README.md`.
+- A. HREF active low: the 1280-PCLK low phase is the 1280 active bytes; the
+  1920-PCLK high phase is blanking.
+- B. HREF active high (datasheet `0x22` bit1=1): the first 1280 bytes of the
+  1920-PCLK high phase are active, the last 640 are dummy; the 1280-PCLK low
+  phase is blanking. The active-low build would capture blanking and still
+  see 1280 bytes.
+
+Do not declare HREF polarity/data success from LED4 alone. Capture D0–D7 and
+compare both HREF phases for the 8-color bar.
+
+**2026-10-28 11-channel attempt failed.** The 13:58 capture still shows the
+15 kHz / 1280-byte HREF envelope (active-low assumption) but CH2 has 12–16 ns
+PCLK crosstalk during the high phase, CH1 is only 4 ns spikes (not VSYNC),
+and D0–D7 are all zero. The 14:36 HREF-only capture is a stable **29.53 kHz**
+(30.856 µs high / 3.002 µs low / 33.858 µs period). This is a different state,
+not jitter inside one capture. Leading hypothesis: the camera was re-plugged/
+reset and reverted to its default 1280×960 timing (~41.5 MHz, 30.8 fps);
+`ov5640_bringup` only configures once, so the FPGA did not re-run SCCB.
+Grounding can explain the glitches but cannot by itself synthesize a stable
+29.53 kHz. Evidence:
+`verification/board/evidence/20261028_dvp_11ch/README.md`.
+
+**Bitstreams (local, gitignored):** the 12:33 failed debug build (SHA
+`893dc3fa…`) is preserved as `top_dvp_test_fail_20261028_dbg_893dc3fa.bit`.
+The original 16:24 binary (SHA `506e01ad…`) was overwritten by the 12:33
+build and is not recoverable; it was rebuilt from the same RTL/QoR as
+`top_dvp_test_20261026_rebuild.bit` (SHA `b6df6c18…`, Setup +10.381 ns /
+Hold +0.038 ns / 800 slices). This is **not bit-identical** to the original.
+Do not overwrite either file.
+
+Next: full power cycle (FPGA + camera), flash the rebuild, capture
+PCLK/HREF/VSYNC, then D0–D7 in both HREF phases. Do not change
+`0x3035/36/37`, `0x3108`, `0x503D`, `0x4300`, `0x4740`, or `EXPECTED_PIX`
+before that. See `verification/board/bringup-dvp-three-channel.md`, §10, and
+`docs/camera/README.md`.
 
 ## 3. Read order
 
@@ -135,9 +172,12 @@ fpga\scripts\build_top_dvp_test.bat
 ```
 
 Outputs: `build/bitstream/top_dvp_test.bit`, `top_dvp_test_route.qor`,
-`top_dvp_test_final_timing.rpt`. `cam_pclk` is constrained at the measured
-**50 MHz**; input delays (10/2 ns) are still provisional. Latest QoR:
-Setup +10.245 ns, Hold +0.054 ns, 800 slices.
+`top_dvp_test_final_timing.rpt`. `cam_pclk` is constrained at **50 MHz**
+(conservative; measured **48.000 MHz**); input delays (10/2 ns) are still
+provisional. The 2026-10-26 16:24 diagnostic was Setup +10.381 ns / Hold
++0.038 ns / 800 slices, SHA-256 `506e01ad...cca07a`; that binary was
+overwritten on 2026-10-28 12:33 and is rebuilt as
+`top_dvp_test_20261026_rebuild.bit` (SHA `b6df6c18...`, not bit-identical).
 
 The script calls `td_commands_prompt.exe` and runs
 `read_hdl -> read_adc -> optimize_rtl -> read_sdc -> optimize_gate -> place -> route -> bitgen`.
@@ -276,20 +316,41 @@ Order of work:
    `ov5640_cfg_rom.v`), explicit `0x4740=0x22`, `top_dvp_test.v`, constraints,
    TD build and bitstream. See
    `verification/static/top_dvp_test_build_2026-10-26.md`.
-3. **Three-channel passed (2026-10-26):** PCLK 50 MHz; HREF active high,
-   15 kHz / 66.67 µs / 40 µs high = 2000 PCLK; VSYNC active low, 30 Hz /
-   33.33 ms; ~500 lines/frame. Config `0x4740=0x22`; capture uses
-   `HREF_ACTIVE_HIGH=1`, `VSYNC_ACTIVE_HIGH=0`; SDC uses 50 MHz.
-   Evidence: `verification/board/evidence/20261026_dvp_three_channel/`.
-4. **Next:** rebuild with `COLOR_BAR=1`, probe D0–D7, verify RGB565 byte order,
-   and resolve the 2000-byte HREF-high vs 1280-byte active width. Then HDMI.
-5. HDMI output after DVP data is stable. DDR frame buffer is out of scope for now.
+3. **Three-channel passed (2026-10-26):** PCLK **48.000 MHz**; HREF 15 kHz /
+   66.665 µs, high 40 µs = 1920 PCLK, low 26.665 µs = 1280 PCLK; VSYNC 30 Hz /
+   33.333 ms. `0x22` is measured **active high** (idle low, 66.665 µs high);
+   `0x23` is **active low**. The bit0 effect is inverted vs the datasheet. Line
+   count is **480** HREF rises/frame; one HREF high is 1.373 ms (vertical
+   blanking) and spans the VSYNC pulse. Evidence:
+   `verification/board/evidence/20261026_dvp_three_channel/`.
+4. **2026-10-28 11-channel attempt failed:** HREF/VSYNC unstable; D0–D7 not
+   captured. The 14:36 HREF-only capture is 29.53 kHz, likely the camera
+   default 1280×960 mode after a reset/re-plug, not grounding alone. See
+   `verification/board/evidence/20261028_dvp_11ch/README.md`.
+5. **Next:** full power cycle, flash the 16:24 rebuild, re-capture
+   PCLK/HREF/VSYNC, then D0–D7 in both HREF phases. Resolve HREF A/B before
+   changing config. Then HDMI.
+6. HDMI output after DVP data is stable. DDR frame buffer is out of scope for now.
 
-Polarity (measured 2026-10-26): **HREF active high, VSYNC active low**. The
-configuration writes `0x4740=0x22`; the earlier `0x23` (VSYNC active high)
-did not match the LA waveform. The `dvp_capture` instance uses
-`HREF_ACTIVE_HIGH=1`, `VSYNC_ACTIVE_HIGH=0`. See
-`docs/camera/README.md` §2.1. Do not change these three places independently.
+Polarity (measured 2026-10-26 by LA CSV):
+
+- `0x4740=0x23` -> VSYNC **active low** (idle high, 66.665 µs low pulse).
+- `0x4740=0x22` -> VSYNC **active high** (idle low, 66.665 µs high pulse).
+- The `0x4740[0]` effect is **inverted relative to the datasheet** on this
+  module/board. Use a consistent pair: `0x23` + `VSYNC_ACTIVE_HIGH=0`, or
+  `0x22` + `VSYNC_ACTIVE_HIGH=1`. The earlier `0x22` + 0 was wrong; the
+  16:24 diagnostic build uses `0x22` + 1.
+- **HREF polarity is unresolved (A/B):** the low phase is 26.665 µs =
+  **1280 PCLK**, the high phase is 40 µs = **1920 PCLK**. A. active low:
+  low phase is the 1280 active bytes. B. active high (datasheet `0x22` bit1=1):
+  high phase = 1280 active + 640 dummy; low phase is blanking. Both let
+  `EXPECTED_PIX=1280` pass, so LED4 off is not proof. Capture D0–D7 in both
+  phases and look for the 8-color bar.
+- HREF is high for **1.373 ms** during vertical blanking and spans the VSYNC
+  pulse; do not treat VSYNC-during-HREF as a fatal error, and do not count the
+  long high as a 65,920-byte line.
+- See `docs/camera/README.md` §2.1. Do not change config, readback expectation,
+  and capture parameter independently.
 
 References: datasheet and ALIENTEK links are recorded in
 `docs/camera/README.md`; the PDF and third-party code stay out of the public
