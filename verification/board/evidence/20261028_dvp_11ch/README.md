@@ -216,11 +216,17 @@ HREF 两相 + D0–D7，看哪一相出现 8 色条。
 | 失败尝试副本 | `build/bitstream/top_dvp_test_fail_20261028_dbg_893dc3fa.bit` | 同上 | 防止再被覆盖 |
 | 26 日 16:24 诊断设计重建 | `build/bitstream/top_dvp_test_20261026_rebuild.bit` | `b6df6c18…4087f` | 同 RTL/QoR；**不是原始二进制** |
 | 26 日 16:24 原始位流 | 已被 10-28 12:33 构建覆盖 | `506e01ad…ca07a`（记录值） | 在仓库/Downloads/Desktop/Documents 未找到 |
+| 26 日 13:16 三通道参考重建 | `build/bitstream/top_dvp_test_20261026_3ch_rebuild.bit` | `fb3b3b84…87846e` | `HREF_ACTIVE_HIGH=1`、`VSYNC_ACTIVE_HIGH=0`、`EXPECTED_PIX=2000`、`COLOR_BAR=0`；QoR 10.245/0.054/800 |
+| 26 日 13:16 原始位流 | 已被后续构建覆盖 | `8f320bbd…e8bd`（记录值） | 15:47 三通道采集用的就是这一版 |
 
-- 16:24 原始二进制没有备份，无法恢复。当前重建的 QoR 与原始记录一致
-  （Setup +10.381 ns / Hold +0.038 ns / 800 slices），但 SHA 不同；
-  TD 的 place/route 不是逐 bit 确定的。**重测的是同一份 RTL，不是同一个
-  二进制**，这个限制要写清楚。
+- 16:24 和 13:16 的原始二进制都没有备份，无法恢复。两次重建的 QoR 都与
+  原始记录一致（16:24：10.381/0.038/800；13:16：10.245/0.054/800），
+  但 SHA 不同；TD 的 place/route 不是逐 bit 确定的。**重测的是同一份 RTL，
+  不是同一个二进制**，这个限制要写清楚。
+- 想复现 15:47 那次“PCLK/HREF/VSYNC 三通道正确”的采集，烧
+  `top_dvp_test_20261026_3ch_rebuild.bit`（13:16 参数）；想复现
+  “LED4 熄灭 + HREF 低有效 + 彩条”的诊断，烧
+  `top_dvp_test_20261026_rebuild.bit`（16:24 参数）。两者不要混用。
 - 12:33 失败位流的 `dvp_color_check.v` / `debug_serial_tx.v` 源文件已被
   回退删除，无法从当前源码重建；只能保留位流本身。
 - 位流按项目规则不入库（`.gitignore` 的 `build/`、`*.bit`）；本 PR 只记录

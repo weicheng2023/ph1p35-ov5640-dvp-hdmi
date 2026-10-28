@@ -27,9 +27,13 @@
 > `top_dvp_test_fail_20261028_dbg_893dc3fa.bit`；16:24 原始位流
 > SHA `506e01ad…` 已被 12:33 构建覆盖、无法找回，当前按同一 RTL/QoR
 > 重建为 `top_dvp_test_20261026_rebuild.bit`（SHA `b6df6c18…`，
-> **不是原始二进制**）。两个文件都留在 `build/bitstream/`，不要互相覆盖。
+> **不是原始二进制**）。15:47 三通道采集用的 13:16 版（SHA `8f320bbd…`）
+> 也已丢失，按同 RTL/QoR 重建为 `top_dvp_test_20261026_3ch_rebuild.bit`
+> （SHA `fb3b3b84…`，Setup 10.245/Hold 0.054/800）。三个文件都留在
+> `build/bitstream/`，不要互相覆盖：13:16 版复现三通道采集，16:24 版复现
+> LED4 熄灭/HREF 低有效诊断。
 >
-> 下一步：**整机断电再上电** → 烧重建位流 → 抓 PCLK/HREF/VSYNC →
+> 下一步：**整机断电再上电** → 烧对应重建位流 → 抓 PCLK/HREF/VSYNC →
 > 接好 D0–D7 抓低/高两相彩条。在 HREF 极性/数据相确定前，不改
 > `0x3035/36/37`、`0x3108`、`0x503D`、`0x4300`、`0x4740`、`EXPECTED_PIX`。
 > HDMI 未开始。

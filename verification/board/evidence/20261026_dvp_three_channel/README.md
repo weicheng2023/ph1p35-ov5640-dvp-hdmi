@@ -18,7 +18,12 @@
 > The 16:24 original binary (SHA `506e01ad…`) was overwritten by the
 > 2026-10-28 12:33 debug build. A same-RTL/QoR rebuild is
 > `build/bitstream/top_dvp_test_20261026_rebuild.bit` (SHA `b6df6c18…`),
-> not bit-identical.
+> not bit-identical. The 13:16 bitstream used for this 15:47 capture (SHA
+> `8f320bbd…`) is also overwritten; its same-RTL/QoR rebuild is
+> `build/bitstream/top_dvp_test_20261026_3ch_rebuild.bit` (SHA `fb3b3b84…`,
+> Setup +10.245 ns / Hold +0.054 ns / 800 slices). Use the 3ch rebuild to
+> re-test this capture; use the 16:24 rebuild for the HREF-low/color-bar
+> diagnostic.
 
 ## 1. Setup
 
