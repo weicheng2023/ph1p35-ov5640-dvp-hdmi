@@ -1,41 +1,31 @@
 # PH1P35 × ATK-MC5640：DVP 图像采集与 HDMI 显示
 
-> **当前状态（2026-11-06）：三通道复核通过，开始彩条测试。**
+> **当前状态（2026-11-06）：DVP 三通道复核通过后暂停；转向 HDMI 显示彩条。**
 > 最小 SCCB Chip ID 工程已上板验证通过（0x5640）；DVP RTL、仿真、
 > RGB565 配置/回读和 TD 构建均已通过。
 >
-> **2026-11-06 三通道复核（通过）**：`2026_11_6_PCLK_VSYNK_HREF.atkdl`
-> （50 MS/s，200 ms）实测 VSYNC **30 Hz / 33.333 ms / 66.66 µs 高**，
-> HREF **15 kHz / 39.997 µs 高 / 26.66 µs 低**，每帧 479 正常行
-> （等效 480）；和 2026-10-26 的 15:47 成功一致。2026-10-28 的
-> 29.53 kHz 异常**没有复现**。PCLK 在 50 MS/s 下欠采样，显示为
-> **2 MHz 混叠**，不能单独证明 48.000 MHz；彩条采集必须用 200/250 MS/s。
+> **当前目标：FPGA 内部彩条 → HDMI 显示器**，不接摄像头、不用 DDR。
+> 入口和第一步核对清单见 [docs/display/README.md](docs/display/README.md)；
+> 下一个 session 的启动 prompt 见
+> [docs/project/next-session-prompt.md](docs/project/next-session-prompt.md)。
+> 先确认 HDMI1 是 source/output 还是 sink/input，再写 TMDS RTL。
 >
-> **HREF 极性仍有 A/B 两种解释**：低相位正好 1280 PCLK，16:24 的
-> `HREF_ACTIVE_HIGH=0` + `EXPECTED_PIX=1280` 会因长度匹配而让 LED4 熄灭；
-> 但高相位 1920 PCLK 也可能是“1280 有效 + 640 dummy”的高有效模式。
-> **LED4 熄灭只证明长度/行数，不证明像素数据。** 必须用 D0–D7 彩条比较
-> 低/高两相才能定极性。
+> **DVP 历史（已暂停，不再作为下一步）**：2026-11-06 三通道复核通过：
+> `2026_11_6_PCLK_VSYNK_HREF.atkdl`（50 MS/s，200 ms）实测 VSYNC
+> 30 Hz / 33.333 ms，HREF 15 kHz / 39.997 µs 高，每帧 479 正常行
+> （等效 480）；2026-10-28 的 29.53 kHz 未复现。PCLK 在 50 MS/s 下
+> 是 2 MHz 混叠，不能单独证明 48.000 MHz。HREF 极性 A/B 仍未定；
+> 摄像头彩条测试留到以后，不在当前计划内。
 >
-> **下一步：彩条测试**。烧 `top_dvp_test_20261106_colorbar.bit`
-> （16:24 重建，`COLOR_BAR=1`，SHA `b6df6c18…`），**整机断电再上电**，
-> 用 **200/250 MS/s** 抓 11 通道，HREF 边沿触发 100 µs；用
-> `--href-active=low` 和 `--href-active=high` 各分析一次，看哪一相出现
-> 8 色条。详细步骤见
-> [20261106_dvp_3ch_recheck](verification/board/evidence/20261106_dvp_3ch_recheck/README.md)。
+> **DVP 位流（本地历史）**：12:33 失败位流 SHA `893dc3fa…` 已复制保存；
+> 16:24 原始位流 SHA `506e01ad…` 已被覆盖，按同 RTL/QoR 重建为
+> `top_dvp_test_20261026_rebuild.bit`（SHA `b6df6c18…`）；13:16 三通道
+> 参考重建为 `top_dvp_test_20261026_3ch_rebuild.bit`（SHA `fb3b3b84…`）。
+> `top_dvp_test_20261106_colorbar.bit` 是摄像头彩条的旧副本，当前
+> **不用于** HDMI 彩条。文件都留在 `build/bitstream/`，不要互相覆盖。
 >
-> **位流保存**：12:33 失败位流 SHA `893dc3fa…`，已复制为
-> `top_dvp_test_fail_20261028_dbg_893dc3fa.bit`；16:24 原始位流
-> SHA `506e01ad…` 已被 12:33 构建覆盖，当前按同一 RTL/QoR 重建为
-> `top_dvp_test_20261026_rebuild.bit`（SHA `b6df6c18…`），
-> 彩条副本为 `top_dvp_test_20261106_colorbar.bit`（同 SHA）。
-> 15:47 三通道用的 13:16 版（SHA `8f320bbd…`）也已丢失，按同 RTL/QoR
-> 重建为 `top_dvp_test_20261026_3ch_rebuild.bit`（SHA `fb3b3b84…`，
-> Setup 10.245/Hold 0.054/800）。文件都留在 `build/bitstream/`，
-> 不要互相覆盖。
->
-> 在 HREF 极性/数据相确定前，不改 `0x3035/36/37`、`0x3108`、`0x503D`、
-> `0x4300`、`0x4740`、`EXPECTED_PIX`。HDMI 未开始。
+> 在 HREF 极性/数据相确定前，不改摄像头寄存器；但当前阶段不再推进
+> 摄像头彩条。
 >
 > **接线复核（2026-10-24）**：J2-30 = **GND**，J2-32 = **GPIOB_27（R6）**。
 > 此前“GND/SCL 接反”的说法是误读原理图右侧标签造成的，**已撤回**；
@@ -104,8 +94,8 @@
 | DVP 采集 RTL + 仿真 | **已完成**（24/48MHz，480 行帧） | `verification/static/dvp_capture_sim_2026-10-26.md` |
 | RGB565 配置/回读 + TD 构建 | **已完成（仿真/构建）** | `ov5640_cfg.v`、`top_dvp_test.v`；当前 `top_dvp_test.bit` 是 12:33 失败构建 |
 | DVP 上板三通道 | **2026-11-06 复核通过**：VSYNC 30 Hz/33.333 ms、HREF 15 kHz/40 µs 高；50 MS/s 的 PCLK 是 2 MHz 混叠；**HREF 极性 A/B 未定** | `verification/board/evidence/20261106_dvp_3ch_recheck/` |
-| DVP 11 通道 / 彩条 | **下一步**：烧 16:24 彩条重建，200/250 MS/s 抓 D0–D7 两相；2026-10-28 的失败已由 3 通道复核缩小范围 | `verification/board/evidence/20261106_dvp_3ch_recheck/`；彩条位流 SHA `b6df6c18...` |
-| HDMI 显示 | **未开始** | 待后续 RTL |
+| DVP 11 通道 / 摄像头彩条 | **暂停**（三通道复核通过；摄像头彩条延后，不在当前计划） | `verification/board/evidence/20261106_dvp_3ch_recheck/` |
+| HDMI 显示彩条 | **当前下一步**：先核对 HDMI1 方向/引脚/IO 标准，再做 640×480 内部彩条 | `docs/display/README.md` |
 | DDR 帧缓存 | **未开始** | 待架构确认 |
 
 已知电气风险（详见 wiring.md §5）：
@@ -247,9 +237,13 @@ fpga\scripts\build_top_cam_id.bat
    单测 29.53 kHz；推测摄像头重插/复位后回默认 1280×960、FPGA 未重跑
    SCCB。接地能解释毛刺，但不能单独解释稳定频率。见
    `verification/board/evidence/20261028_dvp_11ch/`。
-6. 数据稳定后再做 HDMI 时序与显示；DDR 帧缓存暂不引入。
+6. **DVP 暂停；下一步 HDMI 显示彩条**（不接摄像头、不用 DDR）：
+   先从原理图确认 HDMI1 是 source/output 还是 sink/input，核对 TMDS
+   候选球位/IO 标准，再做 640×480 内部 8 色条。见
+   [docs/display/README.md](docs/display/README.md) 和
+   [next-session-prompt](docs/project/next-session-prompt.md)。
 
-不建议直接跳到完整视频链路；先逐级证明 PCLK、同步信号和数据对齐。
+不建议直接跳到完整视频链路；先逐级证明 HDMI 时序/TMDS/显示器。
 
 ### 7.3 验证分级（不可互相替代）
 

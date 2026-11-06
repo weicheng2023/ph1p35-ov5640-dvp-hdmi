@@ -29,8 +29,9 @@ Tools: Anlogic Tang Dynasty **6.2.1**; ModelSim SE-64 2020.4 for simulation.
 | HREF polarity | **Unresolved A/B:** low phase = 1280 PCLK; high = 1920 PCLK. Must compare D0–D7 in both phases |
 | DVP diagnostic build (HREF low + color bar) | 16:24 original SHA `506e01ad…` overwritten; rebuilt same RTL/QoR as `top_dvp_test_20261026_rebuild.bit` (SHA `b6df6c18…`); color-bar copy `top_dvp_test_20261106_colorbar.bit` |
 | DVP 3-channel recheck (2026-11-06) | **Passed:** `2026_11_6_PCLK_VSYNK_HREF.atkdl`; 30 Hz VSYNC, 15 kHz HREF, 480 lines; 50 MS/s PCLK alias only |
-| DVP 11-channel / color bar (2026-10-28) | **Failed at the time; 2026-11-06 sync recheck passed. Color bar capture is next** |
-| HDMI output | Not started |
+| DVP 11-channel / camera color bar | **Paused:** 3-channel sync recheck passed; camera color bar is deferred, not the current task |
+| HDMI display color bar | **Current next task:** verify HDMI1 source/sink + TMDS pins, then 640×480 internal 8-bar; see `docs/display/README.md` |
+| HDMI output (camera path) | Not started (deferred with DVP) |
 | DDR frame buffer | Not started |
 
 Board evidence:
@@ -101,15 +102,15 @@ Hold +0.038 ns / 800 slices). This is **not bit-identical** to the original.
 The color-bar copy is `top_dvp_test_20261106_colorbar.bit` (same SHA). Do not
 overwrite these files.
 
-**Next: color-bar test.** Full power cycle (FPGA + camera), flash the
-color-bar rebuild, capture **D0–D7 + PCLK/HREF/VSYNC at 200/250 MS/s**,
-HREF-triggered 100 µs, then analyze with both `--href-active=low` and
-`--href-active=high`. Do not change `0x3035/36/37`, `0x3108`, `0x503D`,
-`0x4300`, `0x4740`, or `EXPECTED_PIX` until the run table shows which phase
-contains the 8-color bar. See
-`verification/board/evidence/20261106_dvp_3ch_recheck/README.md` §6,
-`verification/board/bringup-dvp-three-channel.md`, and
-`docs/camera/README.md`.
+**DVP is paused; the next task is HDMI display color bar (no camera).**
+The camera color-bar test (D0–D7 both HREF phases) is deferred. First verify
+whether HDMI1 is a **source/output** or **sink/input**, and confirm the TMDS
+pins/IO standard from the schematic; do not write TMDS output RTL until that
+is resolved. Then build an internal 640×480 8-bar pattern (DVI-compatible
+TMDS) with no camera and no DDR. Entry point:
+`docs/display/README.md`; next-session prompt:
+`docs/project/next-session-prompt.md`. Do not change camera registers or
+DVP RTL during this phase.
 
 ## 3. Read order
 
@@ -346,11 +347,14 @@ Order of work:
    HREF 15 kHz/39.997 µs high; 50 MS/s PCLK is a 2 MHz alias. The 29.53 kHz
    anomaly did not reproduce. See
    `verification/board/evidence/20261106_dvp_3ch_recheck/README.md`.
-6. **Next: color-bar test.** Flash `top_dvp_test_20261106_colorbar.bit`,
-   full power cycle, capture D0–D7 + PCLK/HREF/VSYNC at 200/250 MS/s,
-   HREF-triggered 100 µs; compare `--href-active=low/high`. Resolve HREF A/B
-   and byte order before changing config. Then HDMI.
-7. HDMI output after DVP data is stable. DDR frame buffer is out of scope for now.
+6. **DVP paused after the 2026-11-06 recheck.** The camera color-bar test
+   (D0–D7 both phases) is deferred; do not continue it now.
+7. **Current: HDMI display color bar (no camera, no DDR).** First verify
+   HDMI1 source/sink direction and TMDS pins/IO standard from the schematic;
+   then build an internal 640×480 8-bar pattern with DVI-compatible TMDS.
+   Entry: `docs/display/README.md`; prompt:
+   `docs/project/next-session-prompt.md`.
+8. HDMI camera path/DDR frame buffer remain future work.
 
 Polarity (measured 2026-10-26 by LA CSV):
 

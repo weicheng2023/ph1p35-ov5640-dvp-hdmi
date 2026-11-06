@@ -268,7 +268,10 @@ run table 是判断“checker 假设是否错误”的关键：如果实际是 1
 29.53 kHz 没有复现。**PCLK 必须用 200/250 MS/s 再测**，50 MS/s 不能
 证明 48.000 MHz。
 
-## 10. 下一步：彩条测试
+## 10. DVP 后续（暂停）：摄像头彩条测试
+
+> **当前不执行本节。** 2026-11-06 已切换到 **HDMI 显示彩条**（不接摄像头）。
+> 本节保留为 DVP 未来计划；当前入口见 `docs/display/README.md`。
 
 使用 16:24 诊断重建（`COLOR_BAR=1`，`0x503D=0x80`，
 `VSYNC_ACTIVE_HIGH=1`、`HREF_ACTIVE_HIGH=0`、`EXPECTED_PIX=1280`、

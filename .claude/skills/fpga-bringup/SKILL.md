@@ -25,14 +25,15 @@ have passed. **DVP three-channel timing re-verified 2026-11-06:**
 **active high**; `0x23` is active low. **HREF polarity is unresolved (A/B):**
 low phase = 1280 PCLK; high phase = 1920 PCLK. The 16:24
 `HREF_ACTIVE_HIGH=0` + `EXPECTED_PIX=1280` LED4-off report only proves the
-length check, not pixel data. **Next: color-bar test** with
-`build/bitstream/top_dvp_test_20261106_colorbar.bit` (16:24 rebuild, SHA
-`b6df6c18…`, `COLOR_BAR=1`), 11 channels at **200/250 MS/s**, HREF-triggered
-100 µs; compare `--href-active=low/high`. See
-`verification/board/evidence/20261106_dvp_3ch_recheck/README.md` §6. The
-original 16:24 binary (SHA `506e01ad…`) was overwritten; the rebuild is not
-bit-identical. The 12:33 failed build is preserved as
-`top_dvp_test_fail_20261028_dbg_893dc3fa.bit`. HDMI and DDR are not started.
+length check, not pixel data. **DVP is paused; the camera color-bar test is
+deferred.** **Next: HDMI display color bar** with no camera and no DDR:
+first verify whether HDMI1 is a **source/output** or **sink/input**, and
+confirm the TMDS pins/IO standard from the schematic; do not write TMDS
+output RTL until that is resolved. Then build an internal 640×480 8-bar
+pattern with DVI-compatible TMDS. See `docs/display/README.md` and
+`docs/project/next-session-prompt.md`. The original 16:24 binary (SHA
+`506e01ad…`) was overwritten; the rebuild is not bit-identical. The 12:33
+failed build is preserved as `top_dvp_test_fail_20261028_dbg_893dc3fa.bit`.
 
 ## Starting DVP: read this first
 
@@ -192,11 +193,10 @@ Do not skip levels.
    evidence in `verification/board/evidence/20261026_dvp_three_channel/`.
 6. **2026-10-28 11-channel failed, 2026-11-06 3-channel recheck passed**:
    the `.atkdl` shows VSYNC 30 Hz/33.333 ms and HREF 15 kHz/39.997 µs high;
-   the 29.53 kHz anomaly did not reproduce. At 50 MS/s PCLK is a 2 MHz alias;
-   color-bar capture needs 200/250 MS/s. **Next:** flash
-   `top_dvp_test_20261106_colorbar.bit`, capture D0–D7 in both HREF phases,
-   and resolve A/B before changing config. See
-   `verification/board/evidence/20261106_dvp_3ch_recheck/`.
+   the 29.53 kHz anomaly did not reproduce. At 50 MS/s PCLK is a 2 MHz alias.
+   **DVP is now paused**; the camera color-bar test is deferred. **Next: HDMI
+   display color bar** (no camera/DDR): verify HDMI1 source/sink and TMDS
+   pins, then internal 640×480 8-bar. See `docs/display/README.md`.
 
 ## Critical pins
 

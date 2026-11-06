@@ -4,8 +4,9 @@
 > re-verified VSYNC/HREF (30 Hz / 15 kHz, 480 lines) and the 29.53 kHz
 > anomaly did **not** reproduce. This file remains the failure record for the
 > 2026-10-28 attempt; see
-> `verification/board/evidence/20261106_dvp_3ch_recheck/` for the current
-> status and the color-bar plan.
+> `verification/board/evidence/20261106_dvp_3ch_recheck/` for the DVP
+> recheck. **DVP is now paused; the current direction is HDMI display color
+> bar (no camera), see `docs/display/README.md`.**
 
 > **状态：失败/未收敛，不要合并。** 本文件只记录已经测到的现象，
 > 以及明确标注为“推测”的解释。不要把推测当成结论写进 RTL/配置。

@@ -104,9 +104,10 @@ VSYNC/HREF 的跳变算脉宽/周期，不需要 PCLK；`analyze_la_csv.pl` 统�
 
 ## 优先做的小实验
 
-1. **彩条（下一步）**：11 通道，200/250 MS/s，HREF 边沿触发，抓
-   100 µs（约 1.5 行）；同时用 `--href-active=low` 和
-   `--href-active=high` 分析，比较哪一相出现 8 色彩条。
+1. **DVP 摄像头彩条（暂停）**：11 通道，200/250 MS/s，HREF 边沿触发，
+   抓 100 µs（约 1.5 行）；同时用 `--href-active=low` 和
+   `--href-active=high` 分析，比较哪一相出现 8 色彩条。**当前不执行**；
+   当前方向是 HDMI 显示彩条，见 `docs/display/README.md`。
 2. 3 通道大窗口（VSYNC/HREF/PCLK）可以用 50 MS/s 看帧/行结构，
    但 PCLK 会混叠；要测 PCLK 必须 200/250 MS/s。
 3. 不要一开始用 Stream 模式抓 0.5 s，CSV 会到 GB 级。

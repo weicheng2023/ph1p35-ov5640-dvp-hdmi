@@ -192,7 +192,11 @@ verification/board/evidence/20261026_dvp_three_channel/
 `README.md` 至少包含：日期、位流、接线、LA 设置、实测参数、LED 状态、
 结论和限制。不要填写未测量的数字。
 
-## 10. 下一步
+## 10. DVP 后续（暂停）
+
+> **当前不执行本节。** 2026-11-06 已切换到 **HDMI 显示彩条**（不接摄像头、
+> 不用 DDR）。摄像头彩条保留为 DVP 未来计划；当前入口见
+> `docs/display/README.md`。
 
 1. ~~用实测 PCLK/极性更新 SDC、`0x4740`、`VSYNC_ACTIVE_HIGH` 和
    `EXPECTED_PIX`~~ —— 已完成，但按 48 MHz 修正：`0x22`、VSYNC 高有效、
@@ -207,4 +211,4 @@ verification/board/evidence/20261026_dvp_three_channel/
    - 解释 HREF 高 1920 PCLK / 低 1280 PCLK 与 640 像素（1280 字节）的关系：
      A. 低有效 = 低相位就是有效数据；B. 高有效 = 高相位前 1280 有效 +
      640 dummy。用彩条 run table 定论。
-5. 再进入 HDMI 时序。
+5. DVP 暂停；当前转 HDMI 显示彩条，见 `docs/display/README.md`。

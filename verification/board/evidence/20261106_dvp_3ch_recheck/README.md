@@ -3,7 +3,8 @@
 > **结论：VSYNC/HREF 时序复核通过，和 2026-10-26 的 15:47 成功一致。**
 > 本次是 3 通道（PCLK/VSYNC/HREF），没有 D0–D7；PCLK 在 50 MS/s 下
 > 欠采样，只能作为“与 48 MHz 别名一致”的旁证，不能单独证明 48.000 MHz。
-> 下一步是彩条测试（见 §6）。HREF 极性 A/B 仍未由数据确定。
+> **DVP 已暂停**；摄像头彩条见 §6（延后，不是当前任务）。当前方向是
+> HDMI 显示彩条，见 `docs/display/README.md`。HREF 极性 A/B 仍未由数据确定。
 
 ## 1. 采集条件
 
@@ -115,7 +116,12 @@ perl tools/analyze_dvp_la.pl build/la_test/20261106_3ch.csv --href-active=high
 转完整 200 ms，CSV 会更大。PCLK 在 50 MS/s 下是混叠，脚本的
 PCLK 周期统计只反映混叠频率，不要当 48 MHz 证据。
 
-## 6. 下一步：彩条测试
+## 6. DVP 后续（暂停）：摄像头彩条测试
+
+> **当前不执行本节。** 2026-11-06 方向已切换为 **HDMI 显示彩条**
+> （FPGA 内部彩条 → 显示器，不接摄像头、不用 DDR）。本节保留为 DVP
+> 未来的摄像头彩条计划；当前入口见 `docs/display/README.md` 和
+> `docs/project/next-session-prompt.md`。
 
 ### 6.1 位流
 

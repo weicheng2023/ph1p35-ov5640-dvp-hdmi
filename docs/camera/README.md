@@ -114,8 +114,8 @@
 - **2026-11-06 三通道复核通过**：VSYNC 30 Hz/33.333 ms、HREF
   15 kHz/39.997 µs 高、479 正常行/帧；29.53 kHz 未复现。注意这次
   采样率只有 50 MS/s，PCLK 混叠到约 2 MHz，不能当 48 MHz 证据；
-  彩条采集用 200/250 MS/s。详见
-  `verification/board/evidence/20261106_dvp_3ch_recheck/README.md`。
+  摄像头彩条采集应用 200/250 MS/s（**DVP 已暂停，当前转 HDMI 显示彩条**）。
+  详见 `verification/board/evidence/20261106_dvp_3ch_recheck/README.md`。
 
 ## 3. 配置表使用原则
 
