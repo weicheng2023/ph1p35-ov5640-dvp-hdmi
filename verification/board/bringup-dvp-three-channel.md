@@ -131,6 +131,12 @@ LED4 原因（2026-10-26 CSV）：**VSYNC 极性配对错误**（`0x22` 实测�
 > 29.53 kHz。16:24 的 LED4 熄灭只证明低相位是 1280 PCLK，**不证明低相位
 > 是有效彩条**（高有效 B 解释同样能通过长度检查）。复测步骤见
 > `verification/board/evidence/20261028_dvp_11ch/README.md` §5。
+>
+> **2026-11-06：三通道复核通过。** `2026_11_6_PCLK_VSYNK_HREF.atkdl`
+> 实测 VSYNC 30 Hz/33.333 ms、HREF 15 kHz/39.997 µs 高、479 正常行/帧
+> （480 等效）；29.53 kHz 未复现。50 MS/s 的 PCLK 是 2 MHz 混叠，
+> 彩条采集必须 200/250 MS/s。详见
+> `verification/board/evidence/20261106_dvp_3ch_recheck/README.md`。
 
 ## 6. LA 采集设置
 
@@ -191,8 +197,9 @@ verification/board/evidence/20261026_dvp_three_channel/
 1. ~~用实测 PCLK/极性更新 SDC、`0x4740`、`VSYNC_ACTIVE_HIGH` 和
    `EXPECTED_PIX`~~ —— 已完成，但按 48 MHz 修正：`0x22`、VSYNC 高有效、
    `EXPECTED_PIX=1280`（低相位）/1920（高相位）；HREF 极性待 D0–D7。
-2. 重新下载 16:24 重建位流 `top_dvp_test_20261026_rebuild.bit`，
-   确认 LED2 亮、LED4 状态；**不要用 LED4 单独判定数据正确**。
+2. 重新下载彩条位流 `top_dvp_test_20261106_colorbar.bit`
+   （16:24 重建，`COLOR_BAR=1`），确认 LED2 亮、LED4 状态；
+   **不要用 LED4 单独判定数据正确**。
 3. 整机断电重上电后再抓 PCLK/HREF/VSYNC；若 HREF 29.5 kHz，同窗抓
    PCLK 判断是否默认 1280×960 模式。
 4. 生成/使用 `COLOR_BAR=1` 的位流，抓 D0–D7：
