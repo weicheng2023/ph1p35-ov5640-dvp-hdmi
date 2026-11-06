@@ -1,5 +1,12 @@
 # DVP three-channel capture — 2026-10-26
 
+> **2026-11-06 update:** a 3-channel recheck (`.atkdl`, 50 MS/s) reproduced
+> VSYNC 30 Hz and HREF 15 kHz / 480 lines; the 2026-10-28 29.53 kHz anomaly
+> did not recur. See
+> `verification/board/evidence/20261106_dvp_3ch_recheck/`. The PCLK in that
+> 50 MS/s capture is a 2 MHz alias, so this 2026-10-26 200 MS/s capture
+> remains the direct 48.000 MHz evidence.
+>
 > **2026-10-28 correction.** The timing in this file is still valid, but three
 > labels need correction:
 >
