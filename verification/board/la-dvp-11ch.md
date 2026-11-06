@@ -44,6 +44,8 @@ IDC40 转接板/测试夹；不要在通电时用杜邦针直接捅排针，避�
   行边界丢沿，不能当抖动证据。
 - 旧文档的 **50 MHz** 是 20 ns 粗量化的误读；2.3 GB CSV 的
   `24,000,131 rises / 0.5 s` 也正好是 48.000 MHz。SDC 的 50 MHz 偏保守。
+- **采样率必须 ≥ 100 MS/s**。2026-11-06 的 50 MS/s 抓包里 PCLK 混叠到
+  约 2 MHz（25 采样/周期），只能当旁证，不能当 48 MHz 测量。
 
 ### 2.2 VSYNC
 
@@ -246,3 +248,56 @@ run table 是判断“checker 假设是否错误”的关键：如果实际是 1
 **保留项**：16:24 位流的 LED4 熄灭不等于彩条数据正确；HREF 低有效
 （A）和高有效（B）都能让 1280 长度检查通过，必须用 D0–D7 两相对比
 才能定极性。复测步骤见证据文档 §5。
+
+## 9. 2026-11-06 复核（通过）
+
+文件 `verification/LA/2026_11_6_PCLK_VSYNK_HREF.atkdl`，50 MS/s，
+200 ms，3 通道，阈值 1.6 V。详细数据见
+`verification/board/evidence/20261106_dvp_3ch_recheck/README.md`。
+
+| 项目 | 结果 |
+|---|---|
+| VSYNC | 6 个脉冲，高 **66.66–66.68 µs**，周期 **33.333 ms / 30.000 Hz**，高有效 |
+| HREF 正常行 | 高 **39.997 µs**，低 **26.66 µs**，周期 **66.66 µs / 15 kHz** |
+| HREF 行数 | 每帧 479 正常行；加消隐长高等效 **480 行** |
+| HREF 消隐 | 0.240 ms + 1.066 ms 两段长高，中间 66.7 µs 低与 VSYNC 高重合；总包络 1.373 ms |
+| PCLK | **50 MS/s 欠采样**：约 2 MHz 混叠（25 采样/周期），只能作为 48 MHz 的旁证 |
+| 短脉冲 | 848 个 0.42 µs 短高，按串扰/探头噪声处理 |
+
+结论：**VSYNC/HREF 复核通过，和 2026-10-26 成功一致**；2026-10-28 的
+29.53 kHz 没有复现。**PCLK 必须用 200/250 MS/s 再测**，50 MS/s 不能
+证明 48.000 MHz。
+
+## 10. 下一步：彩条测试
+
+使用 16:24 诊断重建（`COLOR_BAR=1`，`0x503D=0x80`，
+`VSYNC_ACTIVE_HIGH=1`、`HREF_ACTIVE_HIGH=0`、`EXPECTED_PIX=1280`、
+`EXPECTED_LINES=480`）：
+
+```text
+build/bitstream/top_dvp_test_20261026_rebuild.bit
+build/bitstream/top_dvp_test_20261106_colorbar.bit   (同一 SHA)
+SHA-256 b6df6c18cbe00436b4b8e4099cbe456fe6e1a229e7318486986049d81524087f
+```
+
+步骤：
+
+1. **整机断电再上电**（FPGA + 摄像头），确认 LED2 亮。
+2. 11 通道，**200/250 MS/s**，阈值 1.4–1.8 V，单根短地，探头夹
+   摄像头侧（47 Ω 之前）。
+3. HREF 边沿触发，预触发 10 µs，抓 **100 µs**（约 1.5 行）。
+4. 分析：
+
+```bash
+perl tools/extract_atkdl.pl capture.atkdl --max-samples=200000 > line.csv
+perl tools/analyze_dvp_la.pl line.csv --href-active=low  --max-lines=3 --show-pixels=16
+perl tools/analyze_dvp_la.pl line.csv --href-active=high --max-lines=3 --show-pixels=16
+```
+
+5. 看 run table 哪一相出现 8 色条；不要预设条宽/顺序。有效行应为
+   1280 字节（640 像素），`0x4300=0x61` 高字节在前。
+6. 只有彩条自洽后，才改 `HREF_ACTIVE_HIGH` / `EXPECTED_PIX`，再加
+   on-chip checker / LED4。定极性前不改摄像头寄存器。
+
+详细判定和证据见
+`verification/board/evidence/20261106_dvp_3ch_recheck/README.md` §6。

@@ -2,7 +2,7 @@
 
 > Canonical project guide for any AI/agent session working in this repository.
 > Read this before changing RTL, constraints, docs, or making verification claims.
-> **Last updated: 2026-10-28**
+> **Last updated: 2026-11-06**
 
 ## 1. Mission
 
@@ -24,11 +24,12 @@ Tools: Anlogic Tang Dynasty **6.2.1**; ModelSim SE-64 2020.4 for simulation.
 | SCCB Chip ID read | **Verified on board: 0x5640** |
 | DVP capture RTL + simulation | **Passed (24 MHz full 480-line frame; 48/50 MHz quick regressions)** |
 | RGB565 config + readback | **Simulation passed; TD build passed** |
-| DVP board three-channel | **Passed (timing): PCLK 48.000 MHz; VSYNC active high with `0x22`; HREF 15 kHz** |
+| DVP board three-channel | **Re-verified 2026-11-06:** VSYNC 30 Hz/33.333 ms, HREF 15 kHz/40 µs high; PCLK needs 200/250 MS/s (50 MS/s aliases) |
 | DVP counter sanity (LED4) | 16:24 `HREF_ACTIVE_HIGH=0` + 1280 LED4 off (user report), but **LED4 checks length only, not pixel data** |
 | HREF polarity | **Unresolved A/B:** low phase = 1280 PCLK; high = 1920 PCLK. Must compare D0–D7 in both phases |
-| DVP diagnostic build (HREF low + color bar) | Original 16:24 SHA `506e01ad…` overwritten; rebuilt same RTL/QoR as `top_dvp_test_20261026_rebuild.bit` (SHA `b6df6c18…`) |
-| DVP 11-channel / color bar (2026-10-28) | **Failed:** HREF/VSYNC unstable; D0–D7 not captured; see evidence |
+| DVP diagnostic build (HREF low + color bar) | 16:24 original SHA `506e01ad…` overwritten; rebuilt same RTL/QoR as `top_dvp_test_20261026_rebuild.bit` (SHA `b6df6c18…`); color-bar copy `top_dvp_test_20261106_colorbar.bit` |
+| DVP 3-channel recheck (2026-11-06) | **Passed:** `2026_11_6_PCLK_VSYNK_HREF.atkdl`; 30 Hz VSYNC, 15 kHz HREF, 480 lines; 50 MS/s PCLK alias only |
+| DVP 11-channel / color bar (2026-10-28) | **Failed at the time; 2026-11-06 sync recheck passed. Color bar capture is next** |
 | HDMI output | Not started |
 | DDR frame buffer | Not started |
 
@@ -82,18 +83,32 @@ Grounding can explain the glitches but cannot by itself synthesize a stable
 29.53 kHz. Evidence:
 `verification/board/evidence/20261028_dvp_11ch/README.md`.
 
+**2026-11-06 three-channel recheck passed.** `2026_11_6_PCLK_VSYNK_HREF.atkdl`
+(50 MS/s, 200 ms, 3 channels, threshold 1.6 V) shows VSYNC **30 Hz /
+33.333 ms / 66.66 µs high**, HREF **15 kHz / 39.997 µs high / 26.66 µs low**,
+479 normal lines/frame (480 effective). The 2026-10-28 29.53 kHz anomaly did
+**not** reproduce. Caveat: 50 MS/s is below Nyquist for 48 MHz; PCLK appears
+as a **2 MHz alias** and is only consistent with 48 MHz, not a direct
+measurement. The color-bar capture must use **200/250 MS/s**. Evidence:
+`verification/board/evidence/20261106_dvp_3ch_recheck/README.md`.
+
 **Bitstreams (local, gitignored):** the 12:33 failed debug build (SHA
 `893dc3fa…`) is preserved as `top_dvp_test_fail_20261028_dbg_893dc3fa.bit`.
 The original 16:24 binary (SHA `506e01ad…`) was overwritten by the 12:33
 build and is not recoverable; it was rebuilt from the same RTL/QoR as
 `top_dvp_test_20261026_rebuild.bit` (SHA `b6df6c18…`, Setup +10.381 ns /
 Hold +0.038 ns / 800 slices). This is **not bit-identical** to the original.
-Do not overwrite either file.
+The color-bar copy is `top_dvp_test_20261106_colorbar.bit` (same SHA). Do not
+overwrite these files.
 
-Next: full power cycle (FPGA + camera), flash the rebuild, capture
-PCLK/HREF/VSYNC, then D0–D7 in both HREF phases. Do not change
-`0x3035/36/37`, `0x3108`, `0x503D`, `0x4300`, `0x4740`, or `EXPECTED_PIX`
-before that. See `verification/board/bringup-dvp-three-channel.md`, §10, and
+**Next: color-bar test.** Full power cycle (FPGA + camera), flash the
+color-bar rebuild, capture **D0–D7 + PCLK/HREF/VSYNC at 200/250 MS/s**,
+HREF-triggered 100 µs, then analyze with both `--href-active=low` and
+`--href-active=high`. Do not change `0x3035/36/37`, `0x3108`, `0x503D`,
+`0x4300`, `0x4740`, or `EXPECTED_PIX` until the run table shows which phase
+contains the 8-color bar. See
+`verification/board/evidence/20261106_dvp_3ch_recheck/README.md` §6,
+`verification/board/bringup-dvp-three-channel.md`, and
 `docs/camera/README.md`.
 
 ## 3. Read order
@@ -327,10 +342,15 @@ Order of work:
    captured. The 14:36 HREF-only capture is 29.53 kHz, likely the camera
    default 1280×960 mode after a reset/re-plug, not grounding alone. See
    `verification/board/evidence/20261028_dvp_11ch/README.md`.
-5. **Next:** full power cycle, flash the 16:24 rebuild, re-capture
-   PCLK/HREF/VSYNC, then D0–D7 in both HREF phases. Resolve HREF A/B before
-   changing config. Then HDMI.
-6. HDMI output after DVP data is stable. DDR frame buffer is out of scope for now.
+5. **2026-11-06 three-channel recheck passed:** VSYNC 30 Hz/33.333 ms,
+   HREF 15 kHz/39.997 µs high; 50 MS/s PCLK is a 2 MHz alias. The 29.53 kHz
+   anomaly did not reproduce. See
+   `verification/board/evidence/20261106_dvp_3ch_recheck/README.md`.
+6. **Next: color-bar test.** Flash `top_dvp_test_20261106_colorbar.bit`,
+   full power cycle, capture D0–D7 + PCLK/HREF/VSYNC at 200/250 MS/s,
+   HREF-triggered 100 µs; compare `--href-active=low/high`. Resolve HREF A/B
+   and byte order before changing config. Then HDMI.
+7. HDMI output after DVP data is stable. DDR frame buffer is out of scope for now.
 
 Polarity (measured 2026-10-26 by LA CSV):
 

@@ -2,7 +2,7 @@
 
 > **用法**：完成一项将 `[ ]` 改为 `[x]`，并在“变更记录”中注明日期与证据。
 > **状态**：`[x]` 已完成｜`[~]` 进行中｜`[ ]` 未开始｜`[!]` 阻塞/待确认
-> **最后更新**：2026-10-28
+> **最后更新**：2026-11-06
 
 ## 0. 当前结论
 
@@ -26,7 +26,7 @@
 | 电气检查 | **待用户完成** | `verification/board/wiring-check.md` |
 | FPGA TD 环境验证 | **构建已完成，下载待验证** | TD 6.2.1 综合/布局布线/位流通过 |
 | SCCB 初始化与 Chip ID | **已上板通过（用户实测 LED2/3/4 常亮）** | `top_cam_id`、`bringup-sccb-id.md` |
-| DVP 采集 | **三通道时序通过；2026-10-28 11 通道尝试失败（HREF/VSYNC 不稳定）；HREF 极性 A/B 待 D0–D7 确认** | PCLK **48.000MHz**、VSYNC 30fps/0x22 高有效、HREF 15kHz；LED4 只查长度；见 `verification/board/evidence/20261028_dvp_11ch/` |
+| DVP 采集 | **2026-11-06 三通道复核通过；下一步彩条（D0–D7 两相）；HREF 极性 A/B 待确认** | VSYNC 30Hz/33.333ms、HREF 15kHz/40µs；50MS/s PCLK 为 2MHz 混叠；见 `verification/board/evidence/20261106_dvp_3ch_recheck/` |
 | HDMI 显示 | **待开发/待测试** | 未开始 |
 | 整体系统集成 | **待开发/待测试** | 以上均未完成 |
 
@@ -200,13 +200,23 @@
   行数，不检查像素值**：低相位 1280 PCLK 与高相位“1280 有效 + 640 dummy”
   都能让 `EXPECTED_PIX=1280` 通过。HREF 极性 A/B 仍未定，需 D0–D7 两相
   彩条对比。
-- [ ] **I3.5b** **2026-10-28 11 通道尝试失败**：13:58 HREF 包络
+- [x] **I3.5b** **2026-10-28 11 通道尝试失败**：13:58 HREF 包络
   15 kHz/1280 字节但 VSYNC 无效、D0–D7 全 0；14:36 HREF 单测 29.53 kHz。
   推测摄像头复位/重插后回到默认 1280×960，FPGA 未重跑 SCCB；接地可解释
   毛刺但不能单独解释稳定频率。证据：
   `verification/board/evidence/20261028_dvp_11ch/`。
-- [ ] **I3.6** 上板：整机断电重上电，烧重建位流，抓 PCLK/HREF/VSYNC +
-  D0–D7 两相彩条；帧/行/像素计数稳定后才归档。
+- [x] **I3.5c** **2026-11-06 三通道复核通过**：
+  `2026_11_6_PCLK_VSYNK_HREF.atkdl`（50 MS/s，200 ms）VSYNC
+  30 Hz/33.333 ms/66.66 µs 高，HREF 15 kHz/39.997 µs 高/26.66 µs 低，
+  479 正常行/帧（等效 480）；29.53 kHz 异常未复现。PCLK 50 MS/s
+  为 2 MHz 混叠，不能单独证明 48 MHz。证据：
+  `verification/board/evidence/20261106_dvp_3ch_recheck/`；
+  工具 `tools/extract_atkdl.pl`、`tools/analyze_dvp_sync.pl`。
+- [ ] **I3.6** **下一步彩条**：整机断电重上电，烧
+  `top_dvp_test_20261106_colorbar.bit`（SHA `b6df6c18...`），
+  200/250 MS/s 抓 11 通道，HREF 触发 100 µs；用
+  `analyze_dvp_la.pl --href-active=low/high` 比较哪一相出现 8 色条。
+  确认 1280 字节、RGB565 高字节在前、HREF A/B 后再归档。
 
 ## 待确认（阻塞项）
 
@@ -233,14 +243,18 @@
 5. **16:24 诊断设计**：`0x22` + `VSYNC_ACTIVE_HIGH=1` +
    `HREF_ACTIVE_HIGH=0` + `EXPECTED_PIX=1280` + 480 行 + `COLOR_BAR=1`。
    LED4 熄灭只证明低相位 1280 PCLK；**HREF 极性 A/B 未定**。
-6. **2026-10-28 11 通道尝试失败**：先整机断电重上电、烧重建位流，
-   抓 PCLK/HREF/VSYNC，再抓 D0–D7 低/高两相彩条；在定极性前不改配置。
-7. 最后做 HDMI 时序与显示；DDR 帧缓存暂不引入。
+6. ~~2026-10-28 11 通道失败/2026-11-06 复核~~ —— **三通道复核通过**：
+   VSYNC 30 Hz、HREF 15 kHz、480 行；PCLK 50 MS/s 混叠，需 200/250 MS/s。
+7. **下一步彩条**：整机断电重上电，烧 `top_dvp_test_20261106_colorbar.bit`，
+   200/250 MS/s 抓 11 通道，HREF 触发 100 µs；比较
+   `--href-active=low/high`，看哪一相出现 8 色条；定极性/字节序后再改配置。
+8. 最后做 HDMI 时序与显示；DDR 帧缓存暂不引入。
 
 ## 变更记录
 
 | 日期 | 内容 |
 |---|---|
+| 2026-11-06 | **三通道复核通过，开始彩条**：`2026_11_6_PCLK_VSYNK_HREF.atkdl`（50 MS/s，200 ms，3 通道，阈值 1.6 V）实测 VSYNC 30 Hz/33.333 ms/66.66 µs 高，HREF 15 kHz/39.997 µs 高/26.66 µs 低，479 正常行/帧（等效 480）；消隐长高 0.240 ms + 1.066 ms，中间 66.7 µs 低与 VSYNC 重合。2026-10-28 的 29.53 kHz 未复现。PCLK 50 MS/s 欠采样为 2 MHz 混叠，不能单独证明 48 MHz。新增 `tools/extract_atkdl.pl`、`tools/analyze_dvp_sync.pl`；彩条位流 `top_dvp_test_20261106_colorbar.bit`（16:24 重建，SHA `b6df6c18...`）。下一步 200/250 MS/s 抓 D0–D7 两相。证据：`verification/board/evidence/20261106_dvp_3ch_recheck/`。 |
 | 2026-10-28 | **11 通道尝试失败，本分支只 PR 不合并**：13:58 采集中 PCLK=**48.000MHz**、HREF 包络 15kHz/1280 字节（低有效假设），但 CH2 高相位有 12–16ns PCLK 串扰、CH1 只有 4ns 尖峰不是 VSYNC、D0–D7 全 0；14:36 HREF 单测变成 **29.53kHz**（30.856µs 高/3.002µs 低/33.858µs 周期）。推测摄像头重插/复位后回到默认 1280×960、FPGA 未重跑 SCCB；接地可解释毛刺但不能单独解释稳定频率。**HREF 极性 A/B 仍未定**：16:24 LED4 熄灭只证明 1280 长度，不证明低相位是有效数据。证据：`verification/board/evidence/20261028_dvp_11ch/`。位流：12:33 失败构建 SHA `893dc3fa...` 已复制保存；16:24 原始 SHA `506e01ad...` 已被覆盖，同 RTL/QoR 重建为 `top_dvp_test_20261026_rebuild.bit`（SHA `b6df6c18...`，非逐 bit 相同）。 |
 | 2026-10-26 | **彩条 + HREF 低有效诊断位流**：`0x4740=0x22`、`VSYNC_ACTIVE_HIGH=1`、`HREF_ACTIVE_HIGH=0`、`EXPECTED_PIX=1280`、`EXPECTED_LINES=480`、`COLOR_BAR=1`。配置仿真 PASS（`0x503D=0x80`）；HREF 低/VSYNC 高 50MHz 1280B 采集仿真 PASS；TD 构建 16:24:00，Setup +10.381ns / Hold +0.038ns / 800 slices，SHA-256 `506e01ad...`。预期：1.373ms 消隐长高不再计入；HREF 低相位约 1333 PCLK，LED4 可能因 1333 vs 1280 仍亮。 |
 | 2026-10-26 | **2.3GB LA CSV 分析**：新 `0x22` 的 VSYNC 为**高有效**（空闲低、66.665 µs 高脉冲、33.333 ms 周期）；旧 `0x23` 为低有效——`0x4740[0]` 实际效果与 datasheet 相反。HREF 15 kHz/66.665 µs，典型高 40 µs = 2000 PCLK；每帧 **480** 个 HREF 上升沿；每帧一次 **1.373 ms** HREF 长高（垂直消隐），开始于 VSYNC 上升前 240 µs、结束于下降后 1.066 ms，横跨 VSYNC。**LED4 原因=极性配对错误 + 长高被当成 65920 字节行/`vsync_mid_line`，不是 480 vs 500**。 |

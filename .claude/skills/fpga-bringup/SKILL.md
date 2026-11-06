@@ -16,24 +16,23 @@ description: Continue the PH1P35 + ATK-MC5640 (OV5640) DVP/HDMI FPGA project. Us
 
 SCCB Chip ID **0x5640 is verified on board**. DVP capture RTL, real-timing
 simulation, RGB565 configuration/readback, `top_dvp_test.v` and the TD build
-have passed. **DVP three-channel timing passed 2026-10-26:** PCLK
-**48.000 MHz** (not 50 MHz), VSYNC 30 Hz, HREF 15 kHz / 66.665 µs. The LA CSV
-shows `0x22` is VSYNC **active high** and `0x23` is **active low**; the
-`0x4740[0]` effect is inverted vs the datasheet. Line count is 480; HREF high
-is 40 µs = **1920 PCLK**, low is 26.665 µs = **1280 PCLK**; one 1.373 ms
-blanking high per frame. **HREF polarity is unresolved (A/B):** low phase =
-1280 PCLK; high phase = 1920 PCLK. The 16:24 `HREF_ACTIVE_HIGH=0` +
-`EXPECTED_PIX=1280` LED4-off report only proves the length check, not pixel
-data. **2026-10-28 11-channel attempt failed:** HREF/VSYNC unstable; the
-14:36 HREF-only capture is 29.53 kHz, likely the camera default 1280×960 mode
-after a reset/re-plug, not grounding alone. See
-`verification/board/evidence/20261028_dvp_11ch/README.md`. The original 16:24
-binary (SHA `506e01ad…`) was overwritten by the 12:33 debug build; a same-RTL/
-QoR rebuild is `build/bitstream/top_dvp_test_20261026_rebuild.bit` (SHA
-`b6df6c18…`, not bit-identical). The 12:33 failed build is preserved as
-`top_dvp_test_fail_20261028_dbg_893dc3fa.bit`. Next: full power cycle, flash
-the rebuild, capture PCLK/HREF/VSYNC, then D0–D7 in both HREF phases. HDMI and
-DDR are not started.
+have passed. **DVP three-channel timing re-verified 2026-11-06:**
+`2026_11_6_PCLK_VSYNK_HREF.atkdl` (50 MS/s, 200 ms) shows VSYNC **30 Hz /
+33.333 ms / 66.66 µs high**, HREF **15 kHz / 39.997 µs high / 26.66 µs low**,
+479 normal lines/frame (480 effective). The 2026-10-28 29.53 kHz anomaly did
+**not** reproduce. PCLK at 50 MS/s is a **2 MHz alias** (undersampled); direct
+48.000 MHz evidence is the 200/250 MS/s capture. `0x4740=0x22` is VSYNC
+**active high**; `0x23` is active low. **HREF polarity is unresolved (A/B):**
+low phase = 1280 PCLK; high phase = 1920 PCLK. The 16:24
+`HREF_ACTIVE_HIGH=0` + `EXPECTED_PIX=1280` LED4-off report only proves the
+length check, not pixel data. **Next: color-bar test** with
+`build/bitstream/top_dvp_test_20261106_colorbar.bit` (16:24 rebuild, SHA
+`b6df6c18…`, `COLOR_BAR=1`), 11 channels at **200/250 MS/s**, HREF-triggered
+100 µs; compare `--href-active=low/high`. See
+`verification/board/evidence/20261106_dvp_3ch_recheck/README.md` §6. The
+original 16:24 binary (SHA `506e01ad…`) was overwritten; the rebuild is not
+bit-identical. The 12:33 failed build is preserved as
+`top_dvp_test_fail_20261028_dbg_893dc3fa.bit`. HDMI and DDR are not started.
 
 ## Starting DVP: read this first
 
@@ -78,8 +77,11 @@ fpga\scripts\build_top_dvp_test.bat
   Setup +10.381 ns, Hold +0.038 ns, 800 slices. The original binary was
   overwritten by the 2026-10-28 12:33 debug build; rebuild from the same RTL:
   `build/bitstream/top_dvp_test_20261026_rebuild.bit`, SHA `b6df6c18...`,
-  same QoR, **not bit-identical**. Keep the 12:33 failed build as
-  `top_dvp_test_fail_20261028_dbg_893dc3fa.bit`; do not overwrite either.
+  same QoR, **not bit-identical**. Color-bar copy:
+  `top_dvp_test_20261106_colorbar.bit` (same SHA). The 13:16 three-channel
+  rebuild is `top_dvp_test_20261026_3ch_rebuild.bit` (SHA `fb3b3b84...`,
+  Setup 10.245/Hold 0.054/800). Keep the 12:33 failed build as
+  `top_dvp_test_fail_20261028_dbg_893dc3fa.bit`; do not overwrite.
 
 Diagnostics:
 
@@ -188,11 +190,13 @@ Do not skip levels.
    is **A/B unresolved** (low 1280 PCLK vs high 1920 PCLK); LED4 off only
    proves the length check. Follow `verification/board/bringup-dvp-three-channel.md`;
    evidence in `verification/board/evidence/20261026_dvp_three_channel/`.
-6. **2026-10-28 11-channel (failed)**: PCLK 48.000 MHz; 13:58 HREF envelope
-   15 kHz/1280 but CH2 has PCLK crosstalk, CH1 is not VSYNC, D0–D7 all 0;
-   14:36 HREF-only is 29.53 kHz. Likely camera reset/default 1280×960; see
-   `verification/board/evidence/20261028_dvp_11ch/`. Do not change config/RTL
-   before re-capturing PCLK+HREF+VSYNC and D0–D7 in both HREF phases.
+6. **2026-10-28 11-channel failed, 2026-11-06 3-channel recheck passed**:
+   the `.atkdl` shows VSYNC 30 Hz/33.333 ms and HREF 15 kHz/39.997 µs high;
+   the 29.53 kHz anomaly did not reproduce. At 50 MS/s PCLK is a 2 MHz alias;
+   color-bar capture needs 200/250 MS/s. **Next:** flash
+   `top_dvp_test_20261106_colorbar.bit`, capture D0–D7 in both HREF phases,
+   and resolve A/B before changing config. See
+   `verification/board/evidence/20261106_dvp_3ch_recheck/`.
 
 ## Critical pins
 

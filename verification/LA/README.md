@@ -11,9 +11,15 @@
 | `DL32 Plus.csv` | 200 MHz | 1 ms | 11 通道 | 2026-10-28 13:41，D0–D7 有跳变 |
 | `pclk vsync href.csv` | 250 MHz | 1 ms | 11 通道 | 2026-10-28 13:58，HREF 包络有效、VSYNC 无效 |
 | `href.csv` | 250 MHz | 1 ms | 3 通道 | 2026-10-28 14:36，只有 HREF；29.53 kHz |
+| `2026_11_6_PCLK_VSYNK_HREF.atkdl` | **50 MHz** | 200 ms | CH0=PCLK, CH1=VSYNC, CH2=HREF | 2026-11-06 复核；VSYNC/HREF 通过，PCLK 欠采样 |
 
 2026-10-28 的失败尝试、现象/推测和复测步骤见
 `verification/board/evidence/20261028_dvp_11ch/README.md`。
+2026-11-06 的复核和彩条测试计划见
+`verification/board/evidence/20261106_dvp_3ch_recheck/README.md`。
+
+> `.atkdl` 是 ATK-Logic 的 ZIP 存档（104 KB），已入库；解包后的
+> `build/la_test/atkdl_20261106/` 和转换出的 CSV 在 `build/` 下，gitignored。
 
 ## 2026-10-26 关键结论（含 2026-10-28 修正）
 
@@ -37,17 +43,31 @@
 ## 分析工具
 
 ```bash
+# 已有的 11 通道 CSV 分析（需要真实 PCLK，200/250 MS/s）
 perl tools/analyze_dvp_la.pl "verification/LA/pclk vsync href.csv" --href-active=low
+
+# .atkdl → transition CSV，再交给 analyze_dvp_la.pl
+perl tools/extract_atkdl.pl capture.atkdl --max-samples=200000 > line.csv
+perl tools/analyze_dvp_la.pl line.csv --href-active=low
+perl tools/analyze_dvp_la.pl line.csv --href-active=high
+
+# 只看 VSYNC/HREF 脉宽/周期，不依赖 PCLK（50 MS/s 欠采样也能用）
+perl tools/analyze_dvp_sync.pl build/la_test/20261106_3ch_full.csv
+
 perl tools/analyze_la_csv.pl verification/LA/DVP_10_26_15_47.csv
 perl tools/find_long_href.pl verification/LA/DVP_10_26_15_47.csv
 ```
 
 `analyze_dvp_la.pl` 默认 CH0=PCLK、CH1=VSYNC、CH2=HREF、CH3..10=D0..D7；
-`analyze_la_csv.pl` 统计三通道脉宽/HREF 高内 PCLK 数；`find_long_href.pl`
-定位超长 HREF 高。两个脚本都按行流式读取，不把 CSV 装入内存。
+`extract_atkdl.pl` 解 ATK-Logic 的 ZIP/位流；`analyze_dvp_sync.pl` 只按
+VSYNC/HREF 的跳变算脉宽/周期，不需要 PCLK；`analyze_la_csv.pl` 统计
+三通道脉宽/HREF 高内 PCLK 数；`find_long_href.pl` 定位超长 HREF 高。
+脚本都按行流式读取，不把 CSV 装入内存。
 
 `href.csv` 只有 HREF，没有 PCLK；脚本会报 `no PCLK rise edge`，这是正常的，
 用原始脉宽统计即可（30.856 µs 高 / 3.002 µs 低 / 33.858 µs 周期 = 29.53 kHz）。
+50 MS/s 的 3 通道抓包里 PCLK 是 2 MHz 混叠，`analyze_dvp_la.pl` 的
+按 PCLK 计字节会失效；这种文件用 `analyze_dvp_sync.pl`。
 
 ## 2026-10-28 结论摘要
 
@@ -63,10 +83,30 @@ perl tools/find_long_href.pl verification/LA/DVP_10_26_15_47.csv
 - 复测时先整机断电再上电，抓 PCLK+HREF+VSYNC；若 HREF 仍 29.5 kHz，
   同窗抓 PCLK 判断是否 ~41.5 MHz 的默认模式。
 
+## 2026-11-06 复核结论
+
+- 文件：`2026_11_6_PCLK_VSYNK_HREF.atkdl`，50 MS/s，200 ms，3 通道，
+  10,000,104 有效采样，阈值 1.6 V。
+- **VSYNC 通过**：6 个脉冲，高 66.66–66.68 µs，周期 **33.333 ms**
+  （30.000 Hz），高有效；和 2026-10-26 一致。
+- **HREF 通过**：正常行高 **39.997 µs**、低 **26.66 µs**、
+  周期 **66.66 µs（15 kHz）**；每帧 479 个正常行，加消隐长高
+  等效 480 行。
+- 消隐长高：0.240 ms（结束于 VSYNC 上升）+ 1.066 ms（开始于 VSYNC
+  下降之后），中间 66.7 µs 低与 VSYNC 高重合；总包络 1.373 ms。
+  因此按上升沿数得到 481 个/帧（479 正常 + 2 段消隐），有效行仍 480。
+- **PCLK 欠采样**：50 MS/s < 48 MHz 的 Nyquist；PCLK 显示为约 2 MHz
+  混叠（25 采样/周期、高 10 采样、低 15 采样），只能作为
+  “与 48 MHz 别名一致”的旁证，不能直接证明 48.000 MHz。彩条采集
+  必须用 **200/250 MS/s**。
+- 848 个 0.42 µs 短高脉冲，按串扰/探头噪声处理，不影响正常 40 µs 行。
+- 2026-10-28 的 29.53 kHz 异常本次没有复现。
+
 ## 优先做的小实验
 
-1. HREF 边沿触发，抓 100 µs（约 1.5 行），250 MS/s，11 通道；
-   同时用 `--href-active=low` 和 `--href-active=high` 分析，比较哪一相
-   出现 8 色彩条。
-2. VSYNC 边沿触发，抓 35 ms（一帧），250 MS/s；确认 480 行/帧。
+1. **彩条（下一步）**：11 通道，200/250 MS/s，HREF 边沿触发，抓
+   100 µs（约 1.5 行）；同时用 `--href-active=low` 和
+   `--href-active=high` 分析，比较哪一相出现 8 色彩条。
+2. 3 通道大窗口（VSYNC/HREF/PCLK）可以用 50 MS/s 看帧/行结构，
+   但 PCLK 会混叠；要测 PCLK 必须 200/250 MS/s。
 3. 不要一开始用 Stream 模式抓 0.5 s，CSV 会到 GB 级。
