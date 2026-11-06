@@ -1,24 +1,31 @@
 # PH1P35 × ATK-MC5640：DVP 图像采集与 HDMI 显示
 
-> **当前状态（2026-10-26）**：最小 SCCB Chip ID 工程已上板验证通过。
-> RTL 通过 ModelSim 仿真；TD 6.2.1 综合/布局布线/时序/位流通过；
-> 实物烧录后 LED1 闪烁、LED2/3/4 常亮，读回 **Chip ID = 0x5640**。
+> **当前状态（2026-11-06）：DVP 三通道复核通过后暂停；转向 HDMI 显示彩条。**
+> 最小 SCCB Chip ID 工程已上板验证通过（0x5640）；DVP RTL、仿真、
+> RGB565 配置/回读和 TD 构建均已通过。
 >
-> **DVP 采集/配置**：PCLK 域接收、异步事件 FIFO、50MHz 事件监视器、
-> RGB565 配置/回读和 DVP 上板顶层已完成；24/48/50MHz 快速回归与
-> 24MHz 480 行完整帧仿真通过，
-> TD 构建通过，位流 `build/bitstream/top_dvp_test.bit`。
-> 见 [dvp_capture_sim_2026-10-26.md](verification/static/dvp_capture_sim_2026-10-26.md)
-> 和 [top_dvp_test_build_2026-10-26.md](verification/static/top_dvp_test_build_2026-10-26.md)。
-> **上板三通道：已通过**。实测 PCLK = 50 MHz；HREF 高有效
-> （15 kHz，40 µs 高 = 2000 PCLK）；VSYNC 低有效（30 Hz，33.33 ms）。
-> 配置已改为 `0x4740=0x22`，SDC 已改为 50 MHz。
-> **LED4 仍亮**：三通道时序通过，但行/场计数仍不匹配
-> （可能 `EXPECTED_LINES=480` vs 实际约 500 行/帧）。
-> 待解决：HREF 高 2000 字节 vs 640 像素有源 1280 字节；
-> 下一步定位 LED4，再做彩条 + D0–D7。见
-> [证据目录](verification/board/evidence/20261026_dvp_three_channel/README.md)。
-> HDMI 未开始。
+> **当前目标：FPGA 内部彩条 → HDMI 显示器**，不接摄像头、不用 DDR。
+> 入口和第一步核对清单见 [docs/display/README.md](docs/display/README.md)；
+> 下一个 session 的启动 prompt 见
+> [docs/project/next-session-prompt.md](docs/project/next-session-prompt.md)。
+> 先确认 HDMI1 是 source/output 还是 sink/input，再写 TMDS RTL。
+>
+> **DVP 历史（已暂停，不再作为下一步）**：2026-11-06 三通道复核通过：
+> `2026_11_6_PCLK_VSYNK_HREF.atkdl`（50 MS/s，200 ms）实测 VSYNC
+> 30 Hz / 33.333 ms，HREF 15 kHz / 39.997 µs 高，每帧 479 正常行
+> （等效 480）；2026-10-28 的 29.53 kHz 未复现。PCLK 在 50 MS/s 下
+> 是 2 MHz 混叠，不能单独证明 48.000 MHz。HREF 极性 A/B 仍未定；
+> 摄像头彩条测试留到以后，不在当前计划内。
+>
+> **DVP 位流（本地历史）**：12:33 失败位流 SHA `893dc3fa…` 已复制保存；
+> 16:24 原始位流 SHA `506e01ad…` 已被覆盖，按同 RTL/QoR 重建为
+> `top_dvp_test_20261026_rebuild.bit`（SHA `b6df6c18…`）；13:16 三通道
+> 参考重建为 `top_dvp_test_20261026_3ch_rebuild.bit`（SHA `fb3b3b84…`）。
+> `top_dvp_test_20261106_colorbar.bit` 是摄像头彩条的旧副本，当前
+> **不用于** HDMI 彩条。文件都留在 `build/bitstream/`，不要互相覆盖。
+>
+> 在 HREF 极性/数据相确定前，不改摄像头寄存器；但当前阶段不再推进
+> 摄像头彩条。
 >
 > **接线复核（2026-10-24）**：J2-30 = **GND**，J2-32 = **GPIOB_27（R6）**。
 > 此前“GND/SCL 接反”的说法是误读原理图右侧标签造成的，**已撤回**；
@@ -85,10 +92,10 @@
 | TD 综合/布局布线/位流 | **已完成**（WNS +12.684 ns） | `build/bitstream/top_cam_id.bit` |
 | 实物烧录与 LED 验证 | **已完成（用户报告）** | LED1 闪，LED2/3/4 常亮 |
 | DVP 采集 RTL + 仿真 | **已完成**（24/48MHz，480 行帧） | `verification/static/dvp_capture_sim_2026-10-26.md` |
-| RGB565 配置/回读 + TD 构建 | **已完成（仿真/构建）** | `ov5640_cfg.v`、`top_dvp_test.v`；位流 `build/bitstream/top_dvp_test.bit` |
-| DVP 上板三通道 | **时序已通过**（PCLK 50 MHz，HREF 高有效，VSYNC 低有效，30 fps）；**LED4 计数不匹配待定位** | `verification/board/evidence/20261026_dvp_three_channel/` |
-| DVP 彩条 / D0–D7 字节序 | **未开始（下一步）** | 需 `COLOR_BAR=1` 位流 |
-| HDMI 显示 | **未开始** | 待后续 RTL |
+| RGB565 配置/回读 + TD 构建 | **已完成（仿真/构建）** | `ov5640_cfg.v`、`top_dvp_test.v`；当前 `top_dvp_test.bit` 是 12:33 失败构建 |
+| DVP 上板三通道 | **2026-11-06 复核通过**：VSYNC 30 Hz/33.333 ms、HREF 15 kHz/40 µs 高；50 MS/s 的 PCLK 是 2 MHz 混叠；**HREF 极性 A/B 未定** | `verification/board/evidence/20261106_dvp_3ch_recheck/` |
+| DVP 11 通道 / 摄像头彩条 | **暂停**（三通道复核通过；摄像头彩条延后，不在当前计划） | `verification/board/evidence/20261106_dvp_3ch_recheck/` |
+| HDMI 显示彩条 | **当前下一步**：先核对 HDMI1 方向/引脚/IO 标准，再做 640×480 内部彩条 | `docs/display/README.md` |
 | DDR 帧缓存 | **未开始** | 待架构确认 |
 
 已知电气风险（详见 wiring.md §5）：
@@ -219,12 +226,24 @@ fpga\scripts\build_top_cam_id.bat
 4. **OV5640 RGB565 配置/回读 + DVP 上板顶层** —— 已完成
    （`ov5640_cfg.v`、`ov5640_bringup.v`、`top_dvp_test.v`）；
    位流 `build/bitstream/top_dvp_test.bit`。
-5. **上板三通道：已通过**（PCLK 50 MHz、HREF 高有效、VSYNC 低有效、
-   15 kHz 行 / 30 Hz 帧）。下一步：重建 `COLOR_BAR=1`，抓 D0–D7，
-   确认 RGB565 字节序，并解释 2000 字节 vs 1280 字节有源窗口。
-6. 数据稳定后再做 HDMI 时序与显示；DDR 帧缓存暂不引入。
+5. **上板三通道：时序通过**（PCLK **48.000 MHz**、15 kHz 行 / 30 Hz 帧）。
+   LA CSV 显示 `0x22` 是 VSYNC **高有效**、`0x23` 是低有效；HREF 高
+   40 µs = 1920 PCLK、低 26.665 µs = 1280 PCLK，每帧 1.373 ms 长高横跨
+   VSYNC。**16:24 诊断位流**：`0x22` + `VSYNC_ACTIVE_HIGH=1`、
+   `HREF_ACTIVE_HIGH=0`、`EXPECTED_PIX=1280`、480 行、`COLOR_BAR=1`。
+   低相位正好 1280 PCLK，所以 LED4 熄灭；但**高有效 B 解释同样能通过
+   长度检查**，不能据此证明低相位是有效彩条。
+5a. **2026-10-28 11 通道尝试失败**：HREF/VSYNC 不稳定，14:36 HREF
+   单测 29.53 kHz；推测摄像头重插/复位后回默认 1280×960、FPGA 未重跑
+   SCCB。接地能解释毛刺，但不能单独解释稳定频率。见
+   `verification/board/evidence/20261028_dvp_11ch/`。
+6. **DVP 暂停；下一步 HDMI 显示彩条**（不接摄像头、不用 DDR）：
+   先从原理图确认 HDMI1 是 source/output 还是 sink/input，核对 TMDS
+   候选球位/IO 标准，再做 640×480 内部 8 色条。见
+   [docs/display/README.md](docs/display/README.md) 和
+   [next-session-prompt](docs/project/next-session-prompt.md)。
 
-不建议直接跳到完整视频链路；先逐级证明 PCLK、同步信号和数据对齐。
+不建议直接跳到完整视频链路；先逐级证明 HDMI 时序/TMDS/显示器。
 
 ### 7.3 验证分级（不可互相替代）
 

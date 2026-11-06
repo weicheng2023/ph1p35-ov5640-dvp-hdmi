@@ -205,7 +205,7 @@
 |---|---|---|
 | 开发板型号/版本 | `P00_TITLE`、`P01_FPGA` 图页 | PH1P35_FT V1 / HX1P35B_FT_40P；器件 PH1P35MDG324 |
 | J2 引脚编号 | `P05_GPIO` J2 IDC40 符号（800 dpi 复核） | 1–40 已逐脚核对；**J2-30=GND，J2-32=GPIOB_27** |
-| J2 电源脚 | `P05_GPIO`、`P02_POWER` | J2-11=VCC_5V；J2-29=VCC_3V3；J2-14/30=GND |
+| J2 电源脚 | `P05_GPIO`、`P02_POWER` | J2-11=VCC_5V；J2-29=VCC_3V3；**J2-30=GND（已实测）**；J2-14 未实测，勿假定为地 |
 | GPIOB 网络→球位 | `P01_FPGA` BANK32 / BANK22 | 本表 15 个使用网络全部核对一致 |
 | PCLK 路径 | ATK P1-15 → J2-7 → GPIOB_6 → F14 | 一致；F14 为 GCLKIOT3 |
 | 摄像头 P1 信号顺序 | 官方 README + V1.2 原理图 | 信号顺序一致（含 D1–D6 交错排列） |
