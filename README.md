@@ -1,24 +1,88 @@
 # PH1P35 × ATK-MC5640：DVP 图像采集与 HDMI 显示
 
-> **当前状态（2026-10-26）**：最小 SCCB Chip ID 工程已上板验证通过。
-> RTL 通过 ModelSim 仿真；TD 6.2.1 综合/布局布线/时序/位流通过；
-> 实物烧录后 LED1 闪烁、LED2/3/4 常亮，读回 **Chip ID = 0x5640**。
+> **2026-11-09 里程碑：STAGE 2 — BOARD FUNCTIONAL PASS（用户报告）。**
+> **FPGA 内部测试图 → DDR → HDMI 已成功上板显示。**
+> 原生 PAXI 地址为 16-bit word，128-bit 块步长为 8；全写掩码 `0000`
+> （高有效，0=写）。12 项行为回归通过，并修复 gearbox 块边界 pop 延迟；
+> CAL_EN=0、50 MHz、PLL/TMDS/SDC 未改。
+> 最终位流 `top_ddr_fb_hdmi_paxi_fix_20261109.bit`（SHA `e83d9c54…`），
+> Setup +0.110 / Hold +0.020 ns；[构建记录](verification/static/top_ddr_fb_hdmi_paxi_fix_build_2026-11-09.md)、
+> [实物证据](verification/board/evidence/20261109_ddr_fb_hdmi_paxi_fix/README.md)。
+> 证据为用户报告；LED 逐项、CRC、照片未提供。旧位流 `3cde314a…` 为
+> 失败诊断历史，保留但不用于验收。**不宣称完整 PHY 校准或长期稳定性。**
+
+> **2026-11-13 Stage 3：OV5640 → DDR 双缓冲 → HDMI 实时通路 RTL/仿真/TD 构建完成**
+> **（HREF 极性修复版待上板确认）。**
+> 首版上板为“左黑 + 右浅蓝”，与 2026-11-08 单行版一致；定位为
+> `0x4740=0x22` 在本模组上实际是 **HREF 低有效**（低相位 1280 PCLK =
+> 640 像素），原 `HREF_ACTIVE_HIGH=1` 抓到了消隐高相位。只改该参数
+> 1→0 重建：`top_cam_fb_hdmi.bit`（SHA `787b26ee…`），Setup +0.404 /
+> Hold +0.020 ns。旧版保留为 `top_cam_fb_hdmi_hrefhigh_20261113.bit`。
+> 采集 7/7 + active-low、集成 2/2 + 1/1 全尺寸 PASS；阶段 2 回归 12/12。
+> 见[仿真](verification/static/cam_fb_hdmi_sim_2026-11-13.md)、
+> [构建](verification/static/top_cam_fb_hdmi_build_2026-11-13.md)、
+> [上板步骤](verification/board/bringup-cam-fb-hdmi.md)。
+> 上板要同时观察阶段 2 彩条“色块右缘短横毛刺、向上滚动”是否仍存在。
 >
-> **DVP 采集/配置**：PCLK 域接收、异步事件 FIFO、50MHz 事件监视器、
-> RGB565 配置/回读和 DVP 上板顶层已完成；24/48/50MHz 快速回归与
-> 24MHz 480 行完整帧仿真通过，
-> TD 构建通过，位流 `build/bitstream/top_dvp_test.bit`。
-> 见 [dvp_capture_sim_2026-10-26.md](verification/static/dvp_capture_sim_2026-10-26.md)
-> 和 [top_dvp_test_build_2026-10-26.md](verification/static/top_dvp_test_build_2026-10-26.md)。
-> **上板三通道：已通过**。实测 PCLK = 50 MHz；HREF 高有效
-> （15 kHz，40 µs 高 = 2000 PCLK）；VSYNC 低有效（30 Hz，33.33 ms）。
-> 配置已改为 `0x4740=0x22`，SDC 已改为 50 MHz。
-> **LED4 仍亮**：三通道时序通过，但行/场计数仍不匹配
-> （可能 `EXPECTED_LINES=480` vs 实际约 500 行/帧）。
-> 待解决：HREF 高 2000 字节 vs 640 像素有源 1280 字节；
-> 下一步定位 LED4，再做彩条 + D0–D7。见
-> [证据目录](verification/board/evidence/20261026_dvp_three_channel/README.md)。
-> HDMI 未开始。
+> **当前状态（2026-11-09）：HDMI 彩条用户报告 PASS；OV5640 单行 → HDMI 为 PARTIAL PASS；阶段 2 测试图 → DDR → HDMI 功能通过（用户报告）；下一阶段为 OV5640 实时帧缓存。**
+> 最小 SCCB Chip ID 工程已上板验证通过（0x5640）；DVP RTL、仿真、
+> RGB565 配置/回读和 TD 构建均已通过。
+>
+> **2026-11-08 里程碑（用户报告）**：用户使用
+> `top_hdmi_colorbar.bit` 在 PH1P35 实物板成功显示 **FPGA 内部 8 色条**。
+> 证据为用户口头报告，**没有照片/电压/LA 记录**；详见
+> [20261107_hdmi_colorbar](verification/board/evidence/20261107_hdmi_colorbar/README.md)。
+> 该结果**不代表** OV5640 摄像头彩条或全部 HDMI 电气指标已验证。
+>
+> **OV5640 单行 → HDMI：PARTIAL PASS（2026-11-08 用户报告）**。
+> 单行采集/双时钟 RAM/RGB565→RGB888/核心/顶层 RTL 已完成；
+> 3 个 ModelSim testbench PASS；TD 构建 Setup +6.027 ns /
+> Hold +0.020 ns / 821 slices / 1 ERAM。上板 LED1–LED4 全部符合设计，
+> HDMI 显示单行重复的 480 行；但画面是“左侧宽黑条 + 右侧浅蓝紫”，
+> 不是预期 OV5640 内部 8 色条，**像素内容正确性未确认**。
+> 证据 [20261108_ov5640_line_hdmi](verification/board/evidence/20261108_ov5640_line_hdmi/README.md)；
+> 设计说明 [docs/display/ov5640_line_to_hdmi.md](docs/display/ov5640_line_to_hdmi.md)。
+>
+> **当前任务：阶段 2 DDR 帧缓存**。已确认 PH1P35MDG324 封装内
+> **DDR2 512Mb x16、1.5 V**（64 MB）。CAL_EN=1 调试位流上板：
+> LED1 闪、LED2 亮、LED3 灭、LED4 亮；**CAL_EN=0 对照上板：
+> LED1 闪、LED2/LED3 亮、LED4 灭** → READY 可达，但训练被绕过，
+> **不证明数据可靠**。
+>
+> **FPGA 测试图 → DDR → HDMI 独立工程：STAGE 2 — BOARD FUNCTIONAL PASS
+> （2026-11-09 用户报告）**。最终版本 `top_ddr_fb_hdmi` 使用
+> PAXI `ADDR_STEP=8`、高有效全写掩码 `0000`、AW→WVALID 下一周期；
+> 行为仿真 12/12 PASS（正常 CRC `0xF53A4D4F`，旧 +1/FFFF 负例、
+> 注入错误、FIFO underflow/overflow、DDR-source 单像素检查均覆盖）；
+> TD Setup **+0.110 ns** / Hold **+0.020 ns** / 5283 slices；位流 SHA
+> `e83d9c54...`。用户已确认完整测试图上板显示。
+> `CAL_EN=0` 仍是**实验配置**，不证明完整 PHY 校准或长期稳定性。
+> 详见
+> [DDR 帧缓存启动说明](docs/display/ddr-framebuffer-bringup.md)、
+> [12 项仿真](verification/static/ddr_fb_hdmi_paxi_fix_sim_2026-11-09.md)、
+> [构建](verification/static/top_ddr_fb_hdmi_paxi_fix_build_2026-11-09.md)、
+> [上板说明](verification/board/bringup-ddr-fb-hdmi-paxi-fix.md)、
+> [实物证据](verification/board/evidence/20261109_ddr_fb_hdmi_paxi_fix/README.md)、
+> [ddr-debug.md](docs/display/ddr-debug.md) 与
+> [ddr-investigation.md](docs/display/ddr-investigation.md)。
+> 保留已验证的 PLL/TMDS/HDMI 时序，不要无故重写。
+>
+> **DVP 历史（已暂停，不再作为下一步）**：2026-11-06 三通道复核通过：
+> `2026_11_6_PCLK_VSYNK_HREF.atkdl`（50 MS/s，200 ms）实测 VSYNC
+> 30 Hz / 33.333 ms，HREF 15 kHz / 39.997 µs 高，每帧 479 正常行
+> （等效 480）；2026-10-28 的 29.53 kHz 未复现。PCLK 在 50 MS/s 下
+> 是 2 MHz 混叠，不能单独证明 48.000 MHz。HREF 极性 A/B 仍未定；
+> 摄像头彩条测试留到以后，不在当前计划内。
+>
+> **DVP 位流（本地历史）**：12:33 失败位流 SHA `893dc3fa…` 已复制保存；
+> 16:24 原始位流 SHA `506e01ad…` 已被覆盖，按同 RTL/QoR 重建为
+> `top_dvp_test_20261026_rebuild.bit`（SHA `b6df6c18…`）；13:16 三通道
+> 参考重建为 `top_dvp_test_20261026_3ch_rebuild.bit`（SHA `fb3b3b84…`）。
+> `top_dvp_test_20261106_colorbar.bit` 是摄像头彩条的旧副本，当前
+> **不用于** HDMI 彩条。文件都留在 `build/bitstream/`，不要互相覆盖。
+>
+> 在 HREF 极性/数据相确定前，不改摄像头寄存器；但当前阶段不再推进
+> 摄像头彩条。
 >
 > **接线复核（2026-10-24）**：J2-30 = **GND**，J2-32 = **GPIOB_27（R6）**。
 > 此前“GND/SCL 接反”的说法是误读原理图右侧标签造成的，**已撤回**；
@@ -85,11 +149,12 @@
 | TD 综合/布局布线/位流 | **已完成**（WNS +12.684 ns） | `build/bitstream/top_cam_id.bit` |
 | 实物烧录与 LED 验证 | **已完成（用户报告）** | LED1 闪，LED2/3/4 常亮 |
 | DVP 采集 RTL + 仿真 | **已完成**（24/48MHz，480 行帧） | `verification/static/dvp_capture_sim_2026-10-26.md` |
-| RGB565 配置/回读 + TD 构建 | **已完成（仿真/构建）** | `ov5640_cfg.v`、`top_dvp_test.v`；位流 `build/bitstream/top_dvp_test.bit` |
-| DVP 上板三通道 | **时序已通过**（PCLK 50 MHz，HREF 高有效，VSYNC 低有效，30 fps）；**LED4 计数不匹配待定位** | `verification/board/evidence/20261026_dvp_three_channel/` |
-| DVP 彩条 / D0–D7 字节序 | **未开始（下一步）** | 需 `COLOR_BAR=1` 位流 |
-| HDMI 显示 | **未开始** | 待后续 RTL |
-| DDR 帧缓存 | **未开始** | 待架构确认 |
+| RGB565 配置/回读 + TD 构建 | **已完成（仿真/构建）** | `ov5640_cfg.v`、`top_dvp_test.v`；当前 `top_dvp_test.bit` 是 12:33 失败构建 |
+| DVP 上板三通道 | **2026-11-06 复核通过**：VSYNC 30 Hz/33.333 ms、HREF 15 kHz/40 µs 高；50 MS/s 的 PCLK 是 2 MHz 混叠；**HREF 极性 A/B 未定** | `verification/board/evidence/20261106_dvp_3ch_recheck/` |
+| DVP 11 通道 / 摄像头彩条 | **暂停**（三通道复核通过；摄像头彩条延后，不在当前计划） | `verification/board/evidence/20261106_dvp_3ch_recheck/` |
+| HDMI 显示彩条 | **2026-11-08 用户报告上板成功**：FPGA 内部 8 色条已显示；证据为用户口头报告，无照片/电压记录 | [20261107_hdmi_colorbar](verification/board/evidence/20261107_hdmi_colorbar/README.md) |
+| OV5640 单行 → HDMI | **PARTIAL PASS（2026-11-08 用户报告）**：单行采集与 HDMI 显示初步连通，LED 全对；画面左黑条 + 右浅蓝紫，非预期 8 色条；像素正确性未确认 | `verification/board/evidence/20261108_ov5640_line_hdmi/README.md` |
+| DDR 帧缓存 | **STAGE 2 — BOARD FUNCTIONAL PASS（2026-11-09 用户报告）**：测试图 → DDR → HDMI 完整显示；PAXI ADDR_STEP=8、掩码 `0000`；CAL_EN=0 实验配置。旧版 +1/FFFF 曾整屏红，已保留为诊断历史 | `verification/board/evidence/20261109_ddr_fb_hdmi_paxi_fix/README.md`、`verification/static/top_ddr_fb_hdmi_paxi_fix_build_2026-11-09.md`、`docs/display/ddr-framebuffer-bringup.md` |
 
 已知电气风险（详见 wiring.md §5）：
 
@@ -117,6 +182,29 @@
 | 顶层 RTL | [fpga/rtl/top/top_cam_id.v](fpga/rtl/top/top_cam_id.v) | 已建立 |
 | 仿真入口 | [fpga/sim/tb/tb_top_cam_id.v](fpga/sim/tb/tb_top_cam_id.v) | 已通过 |
 | **一键构建** | [fpga/scripts/build_top_cam_id.bat](fpga/scripts/build_top_cam_id.bat) | 已实测 |
+| **HDMI 彩条实现/架构** | [docs/display/README.md](docs/display/README.md) | 已上板成功（用户报告） |
+| **HDMI 彩条构建** | [fpga/scripts/build_top_hdmi_colorbar.bat](fpga/scripts/build_top_hdmi_colorbar.bat) | TD 构建已实测 |
+| **HDMI 上板步骤** | [verification/board/bringup-hdmi-colorbar.md](verification/board/bringup-hdmi-colorbar.md) | **待用户实测** |
+| **HDMI 硬件复核** | [20261107_hdmi_pin_review](verification/board/evidence/20261107_hdmi_pin_review/README.md) | source/引脚/电气风险 |
+| **OV5640 单行设计** | [docs/display/ov5640_line_to_hdmi.md](docs/display/ov5640_line_to_hdmi.md) | RTL/仿真/构建完成；上板 PARTIAL PASS |
+| **OV5640 单行构建** | [fpga/scripts/build_top_ov5640_line_to_hdmi.bat](fpga/scripts/build_top_ov5640_line_to_hdmi.bat) | TD 构建已实测 |
+| **OV5640 单行上板** | [verification/board/evidence/20261108_ov5640_line_hdmi/README.md](verification/board/evidence/20261108_ov5640_line_hdmi/README.md) | **PARTIAL PASS（用户报告）** |
+| **DDR 调查** | [docs/display/ddr-investigation.md](docs/display/ddr-investigation.md) | 封装内 DDR2 512Mb x16；CAL_EN=1 上板 READY 未到 |
+| **DDR 调试** | [docs/display/ddr-debug.md](docs/display/ddr-debug.md) | 状态调试顶层/LED 故障表/SDC 审计 |
+| **DDR 调试构建** | [verification/static/top_ddr_debug_build_2026-11-08.md](verification/static/top_ddr_debug_build_2026-11-08.md) | CAL_EN=1：+1.446/+0.020 ns；SHA `03339cf5...` |
+| **DDR CAL0 对照** | [verification/static/top_ddr_debug_cal0_build_2026-11-08.md](verification/static/top_ddr_debug_cal0_build_2026-11-08.md) | CAL_EN=0：+2.073/+0.021 ns；SHA `f3facdf8...` |
+| **DDR 调试上板** | [verification/board/bringup-ddr-debug.md](verification/board/bringup-ddr-debug.md) | CAL0 上板：LED1 闪/LED2+LED3 亮/LED4 灭（READY 可达） |
+| **DDR 帧缓存启动说明** | [docs/display/ddr-framebuffer-bringup.md](docs/display/ddr-framebuffer-bringup.md) | PAXI 地址/掩码、数据路径、逐层验证、CAL_EN=0 边界 |
+| **DDR 帧缓存 12 项仿真** | [verification/static/ddr_fb_hdmi_paxi_fix_sim_2026-11-09.md](verification/static/ddr_fb_hdmi_paxi_fix_sim_2026-11-09.md) | 12/12 PASS；CRC `F53A4D4F`；旧 +1/FFFF 负例 |
+| **DDR 帧缓存构建** | [verification/static/top_ddr_fb_hdmi_paxi_fix_build_2026-11-09.md](verification/static/top_ddr_fb_hdmi_paxi_fix_build_2026-11-09.md) | +0.110/+0.020 ns；5283 slices；SHA `e83d9c54...` |
+| **DDR 帧缓存上板** | [verification/board/bringup-ddr-fb-hdmi-paxi-fix.md](verification/board/bringup-ddr-fb-hdmi-paxi-fix.md) | **BOARD FUNCTIONAL PASS（用户报告）** |
+| **DDR 帧缓存实物证据** | [20261109_ddr_fb_hdmi_paxi_fix](verification/board/evidence/20261109_ddr_fb_hdmi_paxi_fix/README.md) | **STAGE 2 功能通过（用户报告）** |
+| DDR 帧缓存失败历史 | [20261108_ddr_fb_hdmi](verification/board/evidence/20261108_ddr_fb_hdmi/README.md) | 旧 +1/FFFF 整屏红；已修复 |
+| **Stage 3 仿真** | [verification/static/cam_fb_hdmi_sim_2026-11-13.md](verification/static/cam_fb_hdmi_sim_2026-11-13.md) | 采集 7/7、集成 2/2 + 全尺寸 1/1；Stage 2 回归 12/12 |
+| **Stage 3 构建** | [verification/static/top_cam_fb_hdmi_build_2026-11-13.md](verification/static/top_cam_fb_hdmi_build_2026-11-13.md) | HREF 低有效版 +0.404/+0.020 ns；6952 slices；SHA `787b26ee…` |
+| **Stage 3 上板步骤** | [verification/board/bringup-cam-fb-hdmi.md](verification/board/bringup-cam-fb-hdmi.md) | LED/错误色/观察项（含彩条毛刺复核）；**未上板** |
+| **Stage 3 GUI 工程** | [fpga/project/top_cam_fb_hdmi.al](fpga/project/top_cam_fb_hdmi.al) | 20 设计 + 35 IP RTL + ADC/SDC；仅查看/编辑，位流仍用 tcl |
+| **与参考 Lab 对比** | [docs/display/cam-fb-hdmi-vs-reference-lab.md](docs/display/cam-fb-hdmi-vs-reference-lab.md) | IP 内部未改；仅实例参数/SDC/工程组织差异 |
 | 第三方参考 | `third_party/` | 仍为空 |
 
 ## 5. 仓库结构
@@ -219,12 +307,28 @@ fpga\scripts\build_top_cam_id.bat
 4. **OV5640 RGB565 配置/回读 + DVP 上板顶层** —— 已完成
    （`ov5640_cfg.v`、`ov5640_bringup.v`、`top_dvp_test.v`）；
    位流 `build/bitstream/top_dvp_test.bit`。
-5. **上板三通道：已通过**（PCLK 50 MHz、HREF 高有效、VSYNC 低有效、
-   15 kHz 行 / 30 Hz 帧）。下一步：重建 `COLOR_BAR=1`，抓 D0–D7，
-   确认 RGB565 字节序，并解释 2000 字节 vs 1280 字节有源窗口。
-6. 数据稳定后再做 HDMI 时序与显示；DDR 帧缓存暂不引入。
+5. **上板三通道：时序通过**（PCLK **48.000 MHz**、15 kHz 行 / 30 Hz 帧）。
+   LA CSV 显示 `0x22` 是 VSYNC **高有效**、`0x23` 是低有效；HREF 高
+   40 µs = 1920 PCLK、低 26.665 µs = 1280 PCLK，每帧 1.373 ms 长高横跨
+   VSYNC。**16:24 诊断位流**：`0x22` + `VSYNC_ACTIVE_HIGH=1`、
+   `HREF_ACTIVE_HIGH=0`、`EXPECTED_PIX=1280`、480 行、`COLOR_BAR=1`。
+   低相位正好 1280 PCLK，所以 LED4 熄灭；但**高有效 B 解释同样能通过
+   长度检查**，不能据此证明低相位是有效彩条。
+5a. **2026-10-28 11 通道尝试失败**：HREF/VSYNC 不稳定，14:36 HREF
+   单测 29.53 kHz；推测摄像头重插/复位后回默认 1280×960、FPGA 未重跑
+   SCCB。接地能解释毛刺，但不能单独解释稳定频率。见
+   `verification/board/evidence/20261028_dvp_11ch/`。
+6. **HDMI 显示彩条**（不接摄像头、不用 DDR）：
+   - HDMI1 已确认是 **source**；TMDS 对 G16/H16、F17/E18、H14/H13、
+     C17/D18；TD 无 HDMI IP，改自写 TMDS。
+   - 640×480@60 RTL、4 个 testbench、TD 构建已完成
+     （Setup +5.170/Hold +0.054 ns，107 slices）。
+   - **下一步：上板**。按
+     [bringup-hdmi-colorbar.md](verification/board/bringup-hdmi-colorbar.md)
+     烧 `build/bitstream/top_hdmi_colorbar.bit`，记录 LED/电压/显示器结果。
+   - 入口：[docs/display/README.md](docs/display/README.md)。
 
-不建议直接跳到完整视频链路；先逐级证明 PCLK、同步信号和数据对齐。
+不建议直接跳到完整视频链路；先逐级证明 HDMI 时序/TMDS/显示器。
 
 ### 7.3 验证分级（不可互相替代）
 

@@ -15,9 +15,8 @@
 5. 回读通过后使能 DVP 采集，等 10 帧后开始计数；
 6. LED 显示状态；PCLK/VSYNC/HREF 同时可在 J2 上用 LA 抓取。
 
-配置表显式写 **`0x4740 = 0x22`**：PCLK/HREF 高有效、**VSYNC 低有效**。
-这是 2026-10-26 实测后修正的值；此前尝试的 `0x23`（VSYNC 高有效）与 LA
-波形不符。
+配置表显式写 **`0x4740 = 0x22`**：VSYNC 实测 **高有效**；HREF 的**引脚**
+极性仍待 D0–D7 两相对比确认。此前尝试的 `0x23` 对应 VSYNC 低有效。
 
 ## 2. 涉及文件
 
@@ -104,31 +103,45 @@ fpga\scripts\build_top_dvp_test.bat
 
 | 项目 | 实测值 |
 |---|---|
-| PCLK | **50 MHz**（20 ns，50%） |
-| VSYNC 周期 / 帧率 | **33.33 ms / 30 Hz** |
-| VSYNC 极性 | **低有效**（空闲高、短低脉冲） |
-| HREF 周期 / 行率 | **66.67 µs / 15 kHz** |
-| HREF 高电平 | **40 µs（60%）** |
-| HREF 高电平 PCLK 数 | **2000**（40 µs × 50 MHz） |
-| 每帧总行数 | **500**（33.33 ms / 66.67 µs） |
-| 有源行数 | 预期 480，未单独计数 |
+| PCLK | **48.000 MHz**（20.833 ns；旧写的 50 MHz 是 20 ns 量化误读） |
+| VSYNC 周期 / 帧率 | **33.333 ms / 30 Hz** |
+| VSYNC 极性 | **`0x22` = 高有效**（空闲低、66.665 µs 高脉冲）；**`0x23` = 低有效**（空闲高、短低脉冲） |
+| HREF 周期 / 行率 | **66.665 µs / 15 kHz** |
+| HREF 高/低电平 | 高 **40 µs = 1920 PCLK**；低 **26.665 µs = 1280 PCLK** |
+| HREF 极性 | **A/B 未定**：低相位 1280 PCLK（低有效）；或高相位 1280 有效 + 640 dummy（高有效）。需 D0–D7 彩条对比 |
+| 每帧 HREF 上升沿 | **480**（不是 500） |
+| 每帧行周期 | 500 个（33.333 ms / 66.665 µs），其中约 20 行为垂直消隐 |
+| 每帧 HREF 长高 | **1.373 ms**，开始于 VSYNC 上升前 240 µs、结束于下降后 1.066 ms |
 
-LED 状态：LED1/LED3 正常闪烁，LED2/LED4 常亮。LED2=`cfg_ok`；
-LED4 是旧默认值 `EXPECTED_PIX=1280` 与实际 2000 不符，不是配置失败。
+LED 状态：LED1/LED3 正常闪烁，LED2/LED4 常亮。LED2=`cfg_ok`。
 
-结论：**三通道验证通过**。证据：
+LED4 原因（2026-10-26 CSV）：**VSYNC 极性配对错误**（`0x22` 实测高有效，
+而当前参数是 0）+ **HREF 每帧 1.373 ms 长高**被当成 65920 字节的长行，
+且 VSYNC 沿落在 HREF 高电平内触发 `vsync_mid_line`。**不是 480 vs 500**。
+
+结论：**三通道时序验证通过**。证据：
 `verification/board/evidence/20261026_dvp_three_channel/`。
 
-> 2026-10-26 已按实测修正：`0x4740=0x22`、`VSYNC_ACTIVE_HIGH=0`、
-> `EXPECTED_PIX=2000`、PCLK SDC=50 MHz，并重新生成位流。
-> 新位流已复测：**LED4 仍亮**，说明行/场计数仍不匹配
-> （可能 `EXPECTED_LINES=480` vs 实际约 500 行/帧）。三通道时序验证仍通过；
-> LED4 的计数问题待定位。D0–D7/彩条留到下一轮。
+> 2026-10-26 的修正方向需要调整：`0x22`+`VSYNC_ACTIVE_HIGH=0` 是错误配对。
+> 应改为 `0x22`+1，或回 `0x23`+0；同时处理垂直消隐期间的 HREF 长高。
+> 行数保持 480。D0–D7/彩条留到下一轮。
+>
+> **2026-10-28：11 通道尝试失败。** 13:58 的 HREF 包络仍是 15 kHz/
+> 1280 字节，但 CH1 不是 VSYNC、D0–D7 全 0；14:36 的 HREF 单测变成
+> 29.53 kHz。16:24 的 LED4 熄灭只证明低相位是 1280 PCLK，**不证明低相位
+> 是有效彩条**（高有效 B 解释同样能通过长度检查）。复测步骤见
+> `verification/board/evidence/20261028_dvp_11ch/README.md` §5。
+>
+> **2026-11-06：三通道复核通过。** `2026_11_6_PCLK_VSYNK_HREF.atkdl`
+> 实测 VSYNC 30 Hz/33.333 ms、HREF 15 kHz/39.997 µs 高、479 正常行/帧
+> （480 等效）；29.53 kHz 未复现。50 MS/s 的 PCLK 是 2 MHz 混叠，
+> 彩条采集必须 200/250 MS/s。详见
+> `verification/board/evidence/20261106_dvp_3ch_recheck/README.md`。
 
 ## 6. LA 采集设置
 
 - 通道：PCLK（J2-7）、VSYNC（J2-21）、HREF（J2-20）。
-- 采样率：至少 **200 MS/s**；PCLK 已实测为 **50 MHz**，建议 **500 MS/s–1 GS/s**。
+- 采样率：至少 **200 MS/s**；PCLK 已实测为 **48.000 MHz**，建议 **250–500 MS/s**。
 - 触发：VSYNC 边沿（先试上升沿；若没有，再试下降沿）。
 - 时间窗：至少覆盖 **2–3 帧**；若帧率未知，先用 50–100 ms 窗口。
 - 地：LA 地必须与 J2-30（GND）可靠连接，不要只靠 USB 地。
@@ -179,13 +192,23 @@ verification/board/evidence/20261026_dvp_three_channel/
 `README.md` 至少包含：日期、位流、接线、LA 设置、实测参数、LED 状态、
 结论和限制。不要填写未测量的数字。
 
-## 10. 下一步
+## 10. DVP 后续（暂停）
+
+> **当前不执行本节。** 2026-11-06 已切换到 **HDMI 显示彩条**（不接摄像头、
+> 不用 DDR）。摄像头彩条保留为 DVP 未来计划；当前入口见
+> `docs/display/README.md`。
 
 1. ~~用实测 PCLK/极性更新 SDC、`0x4740`、`VSYNC_ACTIVE_HIGH` 和
-   `EXPECTED_PIX`~~ —— 已完成（50 MHz、`0x22`、VSYNC 低有效、2000）。
-2. 重新下载修正后的 `top_dvp_test.bit`，确认 LED2 亮、LED4 是否熄灭。
-3. 生成 `COLOR_BAR=1` 的位流，抓 D0–D7：
+   `EXPECTED_PIX`~~ —— 已完成，但按 48 MHz 修正：`0x22`、VSYNC 高有效、
+   `EXPECTED_PIX=1280`（低相位）/1920（高相位）；HREF 极性待 D0–D7。
+2. 重新下载彩条位流 `top_dvp_test_20261106_colorbar.bit`
+   （16:24 重建，`COLOR_BAR=1`），确认 LED2 亮、LED4 状态；
+   **不要用 LED4 单独判定数据正确**。
+3. 整机断电重上电后再抓 PCLK/HREF/VSYNC；若 HREF 29.5 kHz，同窗抓
+   PCLK 判断是否默认 1280×960 模式。
+4. 生成/使用 `COLOR_BAR=1` 的位流，抓 D0–D7：
    - 确认 RGB565 高字节在前；
-   - 解释 HREF 高电平 2000 字节 vs 有源 640 像素（1280 字节）的差异
-     （dummy/padding 还是实际宽度不同）。
-4. 再进入 HDMI 时序。
+   - 解释 HREF 高 1920 PCLK / 低 1280 PCLK 与 640 像素（1280 字节）的关系：
+     A. 低有效 = 低相位就是有效数据；B. 高有效 = 高相位前 1280 有效 +
+     640 dummy。用彩条 run table 定论。
+5. DVP 暂停；当前转 HDMI 显示彩条，见 `docs/display/README.md`。

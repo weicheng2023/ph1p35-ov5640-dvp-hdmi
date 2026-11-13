@@ -17,6 +17,16 @@
 //   LED3: frame counter bit 0 (toggles as frames arrive)
 //   LED4: error (cfg error, line/frame error, or event FIFO overflow)
 //
+// Diagnostic build (2026-10-26):
+//   - 0x4740=0x22 is measured ACTIVE HIGH on VSYNC, so VSYNC_ACTIVE_HIGH=1.
+//   - HREF is tested ACTIVE LOW first (HREF_ACTIVE_HIGH=0). The 1.373 ms
+//     vertical-blanking HREF high is then inactive and must not be counted.
+//   - Expected valid bytes per active line = 1280 (640 RGB565 pixels).
+//   - COLOR_BAR=1 enables 0x503D=0x80 for real pixel-data validation.
+//   If LED4 stays on with HREF active low, the likely remaining error is the
+//   measured active-low phase (~1333 PCLK from the LA) versus 1280, not the
+//   blanking long high.
+//
 // This top does NOT drive HDMI or DDR. The camera's PCLK/VSYNC/HREF are also
 // available on J2 for the logic analyzer; the FPGA counters are a cross-check.
 // ============================================================================
@@ -30,12 +40,17 @@ module top_dvp_test #(
     parameter integer V_PIX          = 480,
     parameter integer H_TOTAL        = 1600,
     parameter integer V_TOTAL        = 1000,
-    parameter integer COLOR_BAR      = 0,
-    parameter integer STARTUP_FRAMES = 10,
-    // Measured 2026-10-26: HREF high = 40 us at PCLK = 50 MHz -> 2000 PCLK.
-    // The RGB565 active width is still H_PIX=640 (1280 bytes); the remaining
-    // bytes may be dummy/padding and are not yet distinguished.
-    parameter integer HREF_PCLK      = 2000
+    // Diagnostic build 2026-10-26: color bar on, VSYNC active high (0x22
+    // measured), HREF active low first, expected 1280 active bytes/line.
+    parameter integer COLOR_BAR          = 1,
+    parameter integer STARTUP_FRAMES     = 10,
+    parameter integer VSYNC_ACTIVE_HIGH  = 1,
+    parameter integer HREF_ACTIVE_HIGH   = 0,
+    // Expected valid bytes per active HREF phase. The RGB565 active width is
+    // 640 pixels = 1280 bytes. The LA measured the active-low phase as
+    // ~1333 PCLK; if LED4 stays on, this 1333-vs-1280 difference is the
+    // likely line-length error, to be confirmed with the color-bar data.
+    parameter integer EXPECTED_PIX       = 2 * H_PIX
 ) (
     input  wire        clk_50m,
 
@@ -159,10 +174,10 @@ module top_dvp_test #(
     wire [7:0]  sample_data;
 
     dvp_capture #(
-        .HREF_ACTIVE_HIGH  (1),
-        .VSYNC_ACTIVE_HIGH (0),   // measured: VSYNC idle high, short low pulse
+        .HREF_ACTIVE_HIGH  (HREF_ACTIVE_HIGH),
+        .VSYNC_ACTIVE_HIGH (VSYNC_ACTIVE_HIGH),
         .STARTUP_FRAMES    (STARTUP_FRAMES),
-        .EXPECTED_PIX      (HREF_PCLK),
+        .EXPECTED_PIX      (EXPECTED_PIX),
         .EXPECTED_LINES    (V_PIX)
     ) u_cap (
         .pclk              (cam_pclk),
@@ -222,7 +237,7 @@ module top_dvp_test #(
     wire [31:0] mon_evt_count;
 
     dvp_status_monitor #(
-        .EXPECTED_PIX   (HREF_PCLK),
+        .EXPECTED_PIX   (EXPECTED_PIX),
         .EXPECTED_LINES (V_PIX)
     ) u_mon (
         .clk            (clk_50m),

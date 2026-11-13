@@ -39,14 +39,19 @@
 - 在对应目录的说明或本索引登记“本地存放、未入库”，让其他开发者知道缺失原因。
 - 不提交厂商安装包、IDE 离线包、完整 SDK、超大原始视频。
 
-## 5. 当前状态（2026-10-26）
+## 5. 当前状态（2026-11-09）
 
 已导入并核对：
 
 | 文件 | 内容 | 入库 |
 |---|---|---|
-| `hardware/wiring.md` | 当前有效的 ATK-MC5640 → PH1P35 J2 接线表、电气注意事项、核对结果 | 是 |
+| `hardware/wiring.md` | 当前有效的 ATK-MC5640 → PH1P35 J2 接线表 + **HDMI1 引脚/方向**（§8）、电气注意事项、核对结果 | 是 |
 | `camera/README.md` | OV5640 资料链接、关键寄存器、极性矛盾与再分发约束 | 是 |
+| `display/README.md` | HDMI 彩条架构、25.0/125 MHz 时钟、TMDS 编码/串行化、仿真/构建状态、上板步骤 | 是 |
+| `display/ov5640_line_to_hdmi.md` | OV5640 单行采集 → 双时钟 RAM → HDMI 的设计、1920/1280 调查、A/B、验证状态 | 是 |
+| `display/ddr-investigation.md` | 板载 DDR/帧缓存调查：TD IP、AXI/APB、容量/带宽、乒乓方案、待确认项 | 是 |
+| `display/ddr-framebuffer-bringup.md` | 阶段 2 DDR 帧缓存：PAXI 地址/掩码、数据路径、逐层验证、CAL_EN=0 边界 | 是 |
+| `project/next-session-prompt.md` | Stage 3（OV5640 → DDR → HDMI 实时帧）完整交接与启动 Prompt | 是 |
 | `hardware/HX1P35B_FT_40P_*.pdf` | PH1P35_FT V1 板卡原理图（原厂） | **否，本地保留** |
 | `hardware/DS1300_PH1P_Datasheet.pdf` | PH1P 器件数据手册（原厂） | **否，本地保留** |
 | `camera/ATK-MC5640_V1.2.pdf` | 摄像头模块原理图（原厂） | **否，本地保留** |

@@ -205,7 +205,7 @@
 |---|---|---|
 | 开发板型号/版本 | `P00_TITLE`、`P01_FPGA` 图页 | PH1P35_FT V1 / HX1P35B_FT_40P；器件 PH1P35MDG324 |
 | J2 引脚编号 | `P05_GPIO` J2 IDC40 符号（800 dpi 复核） | 1–40 已逐脚核对；**J2-30=GND，J2-32=GPIOB_27** |
-| J2 电源脚 | `P05_GPIO`、`P02_POWER` | J2-11=VCC_5V；J2-29=VCC_3V3；J2-14/30=GND |
+| J2 电源脚 | `P05_GPIO`、`P02_POWER` | J2-11=VCC_5V；J2-29=VCC_3V3；**J2-30=GND（已实测）**；J2-14 未实测，勿假定为地 |
 | GPIOB 网络→球位 | `P01_FPGA` BANK32 / BANK22 | 本表 15 个使用网络全部核对一致 |
 | PCLK 路径 | ATK P1-15 → J2-7 → GPIOB_6 → F14 | 一致；F14 为 GCLKIOT3 |
 | 摄像头 P1 信号顺序 | 官方 README + V1.2 原理图 | 信号顺序一致（含 D1–D6 交错排列） |
@@ -242,7 +242,67 @@
 > **结论**：本文只证明“图纸上的连接关系已经核对并修正”，
 > **不证明实物接线正确，也不证明系统已通过上电或功能验证**。
 
-## 8. 来源与修订
+## 8. HDMI1（P06_HDMI1）引脚与方向
+
+> 详细证据与证据等级：
+> `verification/board/evidence/20261107_hdmi_pin_review/README.md`。
+> 本节只保留**当前有效的引脚事实**，不重复证据分析。
+
+### 8.1 TMDS / DDC / HPD（BANK32，VCCIO_32 = VCC_3V3）
+
+来源：`HX1P35B_FT_40P_2.pdf`（P01_FPGA，Sheet 2/11），
+`pdftotext -table` + 高 DPI 裁剪复核。
+
+| 信号 | FPGA P 球位 | FPGA N 球位 | FPGA IO | 说明 |
+|---|---|---|---|---|
+| TMDS D0 | **G16** | **H16** | IO_R8P/N_32,T2 | 数据通道 0：Blue + HSYNC/VSYNC |
+| TMDS D1 | **F17** | **E18** | IO_R9P/N_32,T2 | 数据通道 1：Green |
+| TMDS D2 | **H14** | **H13** | IO_R10P/N_32,T2 | 数据通道 2：Red |
+| TMDS CLK | **C17** | **D18** | IO_R11P/N_32,GCLKIOT0/C0,T2 | TMDS 时钟 |
+| HDMI1_SCL | **E15** | — | IO_R16P_32,T1_DQS_P | DDC 时钟（本阶段未用） |
+| HDMI1_SDA | **F15** | — | IO_R16N_32,T1_DQS_N | DDC 数据（本阶段未用） |
+| HDMI1_HPD | **B17** | — | IO_R17P_32,T1 | 热插拔检测（本阶段未用） |
+
+- 差分对是 **G16/H16、F17/E18、H14/H13、C17/D18**。
+  不要使用 H16/F17、E18/H14 等跨对组合（旧文档的 `-layout` 错行结论已作废）。
+- `VCCIO_32` 接 `VCC_3V3`（C401–C406 去耦），因此 BANK32 是 3.3 V IO。
+- TD 6.2.1 的 `PH1P_PHY_HR_PAD` 支持 `IOTYPE = "TMDS33"`；
+  参考工程在**同一器件 PH1P35MDG324** 上把 P 端约束到
+  G16/F17/H14/C17、`IOSTANDARD = TMDS33`，N 端由工具按差分对推断。
+
+### 8.2 方向：Source（FPGA → 显示器）
+
+原理图确认（不是上板结论）：
+
+- HDMI 连接器 pin 18（+5V POWER）的网络 `HDMI_A_5V` 由板载 `VCC_5V`
+  经 D5（MBR0520）提供 → **板卡给显示器供 5V**。
+- pin 19（HOT PLUG）→ 20K/20K 分压 → FPGA B17；HPD 由显示器驱动。
+- DDC 经 Q15/Q16（AO3400）从 FPGA 3.3V 电平转到连接器 5V。
+- 四对 TMDS 从 FPGA Bank32 经 ESD 阵列 D2/D12 直接到连接器。
+
+### 8.3 电气注意（必须实测，不能只看图纸）
+
+- **TMDS 49.9 Ω**：R180–R187 共 8 个，每根 TMDS 线（P/N 各一）各有一个
+  49.9 Ω 上拉到 `+3.3V_HDMI`。这是电流型 TMDS 的板级偏置/终端网络；
+  与 TMDS33 方向一致，但摆幅/共模仍需示波器实测。
+- **两个 5V 网络不要合并**：
+  - `HDMI_A_5V`：VCC_5V 经 D5 → 连接器 pin 18（常供）。
+  - `HDMI_A0_5V`：VCC_5V → U46 TPS2051B（EN=HPD）→ F3/C293/C294；
+    本页只见它经 D6 回灌 HPD 线，**没有直接接 pin 18**。
+- **HPD 锁存**：D6 从 `HDMI_A0_5V` 回灌 HPD；U46 的 EN 又由 HPD 驱动。
+  首次接入后 HPD 可能被保持高，**不能用来可靠检测拔出**；需要重新识别时
+  整机断电重上电。
+- **`+3.3V_HDMI` 上电顺序**：由 Q17（AO3400）从 `VCC_3V3` 切换，
+  栅极由 `VCC_5V` 经 R201 1K 上拉、R200 100K 下拉。VCC_5V 存在时
+  `+3.3V_HDMI` 才建立；Q17 的 Vgs 约 1.7 V，带载电压必须实测。
+
+### 8.4 本阶段不使用的信号
+
+- DDC（E15/F15）：第一版不读 EDID；FPGA 不驱动，外部上拉保持 idle 高。
+- HPD（B17）：第一版不做热插拔逻辑；HPD 锁存会误导“已连接”判断。
+- CEC：连接器 pin 13 经 D4/R188 上拉到 3.3V，**没有接 FPGA**。
+
+## 9. 来源与修订
 
 来源：
 
@@ -256,5 +316,6 @@
 
 | 日期 | 内容 |
 |---|---|
+| 2026-11-07 | 新增 HDMI1 引脚/方向章节：确认 TMDS 对 **G16/H16、F17/E18、H14/H13、C17/D18**；DDC E15/F15；HPD B17。记录 49.9 Ω 上拉、`HDMI_A_5V`/`HDMI_A0_5V` 分离、HPD 锁存与 `+3.3V_HDMI` 上电顺序。证据见 `verification/board/evidence/20261107_hdmi_pin_review/`。 |
 | 2026-10-24 | 800 dpi 复核 J2：确认 **J2-30=GND、J2-32=GPIOB_27**，撤回 10-23 的错误对调；恢复用户原表。 |
 | 2026-10-23 | 建立本文件；核对 J2/球位；当时误读 J2-30/32，已于 10-24 撤回；记录摄像头 P1 符号编号偏移与 SCCB 上拉缺失风险。 |

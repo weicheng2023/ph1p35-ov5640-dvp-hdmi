@@ -12,6 +12,11 @@
 //     when rd_empty is low. Assert rd_en for one rd_clk cycle to pop.
 //   - wr_full is conservative: it is based on a synchronized read pointer, so
 //     it may assert slightly early. That is safe.
+//   - wr_empty is the write-domain view of "the read side has consumed every
+//     written word". It is only a pointer comparison after synchronization,
+//     so it may deassert late; it never reports empty while data is pending.
+//     The Stage 3 display reader uses it to align a frame-buffer switch with
+//     the point where the display has consumed the last word of a frame.
 //   - wr_overflow is sticky until wr_rst_n. It means a write was attempted
 //     while full and was dropped.
 //   - Both sides must be reset together at power-up. If only one side is reset
@@ -31,6 +36,7 @@ module async_fifo_gray #(
     input  wire                  wr_en,
     input  wire [DATA_WIDTH-1:0] wr_data,
     output wire                  wr_full,
+    output wire                  wr_empty,
     output reg                   wr_overflow,
 
     // Read domain
@@ -75,6 +81,7 @@ module async_fifo_gray #(
     reg rd_empty_r;
 
     assign wr_full  = wr_full_r;
+    assign wr_empty = (wgray == wq2_rgray);
     assign rd_empty = rd_empty_r;
     assign rd_data  = mem[rbin[ADDR_WIDTH-1:0]];
 

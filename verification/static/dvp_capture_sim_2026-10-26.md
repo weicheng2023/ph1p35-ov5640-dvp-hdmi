@@ -120,7 +120,10 @@ Parameters matching the 2026-10-26 LA capture:
 - `H_ACTIVE=2000`, `H_BLANK=1333` (line period 3333 PCLK = 66.66 µs)
 - `V_ACTIVE=480`, `V_BACK=14`, `V_FRONT=4`, `VSYNC_WIDTH=2*line`
   (500 lines/frame = 33.33 ms)
-- `VSYNC_ACTIVE_HIGH=0` (measured active low)
+- `VSYNC_ACTIVE_HIGH=0` in that run. The later CSV showed that `0x22` is
+  actually **active high**; the board-like run must be repeated with
+  `VSYNC_ACTIVE_HIGH=1` for the final 0x22 configuration. The polarity
+  regressions show both paths pass.
 
 ```text
 TB: PASS - frames=3 lines_in_frame=0 pix_min=2000 pix_max=2000 events=963
@@ -164,7 +167,13 @@ These values are **placeholder assumptions**, not board measurements:
   board's HREF high actually carries 2000 PCLK; the 720-byte difference
   (dummy/padding vs different width) is not modeled or resolved yet.
 - Section 4.3b uses the measured board structure: 3333 PCLK/line, 500
-  lines/frame, 50 MHz, VSYNC active low.
+  lines/frame, 50 MHz, VSYNC polarity parameter 0.
+- The TB does **not** yet model the measured 1.373 ms HREF high during
+  vertical blanking. The current capture would treat it as a 65,920-byte line;
+  the blanking handling must be designed and added to the TB before the next
+  board-like acceptance run.
+- The TB also does not model the exact VSYNC position inside the long HREF
+  high (measured: rise +240 µs, fall +306.7 µs after the HREF high starts).
 - `V_ACTIVE = 480`, `V_BACK = 18`, `V_FRONT = 6` remain test structure for the
   24 MHz full-frame run; the board-like run uses 14/4.
 - `T_SETUP_NS = T_HOLD_NS = 5 ns`; the OV5640 DVP AC table has not been

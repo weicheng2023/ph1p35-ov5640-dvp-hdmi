@@ -1,9 +1,24 @@
 # FPGA 工程说明
 
-> **当前状态（2026-10-24）**：已有最小 SCCB Chip ID 工程
-> （`rtl/top/top_cam_id.v` + `rtl/camera/sccb_master.v` + `ov5640_id_reader.v`）。
-> ModelSim 仿真通过；TD 综合/布局布线/位流通过；**尚未上板**。
-> 构建入口：`scripts/build_top_cam_id.bat`。
+> **当前状态（2026-11-09）**：
+> - SCCB Chip ID `0x5640` 已上板验证；DVP 三通道复核后暂停。
+> - FPGA 内部 HDMI 彩条已上板成功（用户报告）。
+> - OV5640 单行 → HDMI：**PARTIAL PASS（用户报告）**；像素正确性未确认。
+> - **阶段 2 DDR 帧缓存：STAGE 2 — BOARD FUNCTIONAL PASS（用户报告）**。
+>   PAXI `ADDR_STEP=8`、高有效全写掩码 `0000`、AW→WVALID 下一周期；
+>   ModelSim 12/12 PASS，TD Setup +0.110 / Hold +0.020 ns，5283 slices，
+>   位流 `top_ddr_fb_hdmi_paxi_fix_20261109.bit`（SHA `e83d9c54…`）。
+>   用户确认测试图 → DDR → HDMI 完整显示；CAL_EN=0 仍为实验配置。
+> - **Stage 3（OV5640 → DDR 双缓冲 → HDMI）：RTL/仿真/TD 构建完成，未上板。**
+>   采集 7/7、集成 2/2 快速 + 1/1 640×480 真实时序 PASS；Stage 2 回归 12/12。
+>   TD Setup +0.184 / Hold +0.020 ns，6920 slices；位流
+>   `build/bitstream/top_cam_fb_hdmi.bit`（SHA `a25a2ac9…`）。
+>   构建：`scripts/build_top_cam_fb_hdmi.bat`（`CAM_COLOR_BAR=1` 生成
+>   摄像头内部彩条诊断位流）；上板：
+>   `verification/board/bringup-cam-fb-hdmi.md`。
+> 入口：`docs/display/ddr-framebuffer-bringup.md`；
+> 阶段 2 上板：`verification/board/bringup-ddr-fb-hdmi-paxi-fix.md`；
+> 交接：`docs/project/next-session-prompt.md`。
 
 ## 1. 目录职责
 
