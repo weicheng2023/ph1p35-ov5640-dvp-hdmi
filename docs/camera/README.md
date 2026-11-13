@@ -80,6 +80,26 @@
 必须用 D0–D7 彩条比较低/高两相，才能定 HREF 极性（见
 `verification/board/evidence/20261028_dvp_11ch/README.md` §3.4）。
 
+### 2.1a 2026-11-13 复核：模组 HREF 极性与 datasheet 位定义相反（待上板确认）
+
+数据手册 table 7-18：`0x4740` **bit1 = HREF 极性**（0=低有效，1=高有效），
+默认 `0x20` → bit1=0 → datasheet 意义下 HREF 低有效。
+
+但本地正点原子 OV5640 驱动
+（`D:/Projects/02_Personal_Practice/Digital_IC/Samples/Navigator/FPGA_DEMO/42_ov5640_udp_pc`）
+**不写 `0x4740`**（保持默认 `0x20`），并直接用 `img_data_en = cam_href`
+（高电平有效）采集且能出图 → 本模组引脚上的 HREF 极性与 datasheet
+位定义**相反**，与已实测的 bit0/VSYNC 反相一致。
+
+因此我们写的 `0x4740=0x22`（bit1=1，相对默认翻转了 HREF）在引脚上是
+**HREF 低有效**。实测低相位 26.665 µs × 48 MHz = **1280 PCLK =
+640 像素 × 2 字节**，正好是一条完整 RGB565 行。
+
+结论：`0x4740=0x22` 下必须用 **`HREF_ACTIVE_HIGH=0`**。
+2026-11-08 单行版和 2026-11-13 Stage 3 都用了 `HREF_ACTIVE_HIGH=1`，
+实际抓的是 1920 PCLK 的消隐高相位，产生“左黑 + 右浅蓝”的画面，
+与两次上板现象一致。已按 `HREF_ACTIVE_HIGH=0` 重建，**待上板确认**。
+
 其他要点：
 
 - 回读 `0x4740` 只能确认寄存器值，**不能确认引脚极性**；极性必须 LA 实测。

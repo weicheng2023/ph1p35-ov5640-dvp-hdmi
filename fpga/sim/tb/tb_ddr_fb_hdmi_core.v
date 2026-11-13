@@ -21,7 +21,10 @@ module tb_ddr_fb_hdmi_core #(
     parameter integer CORRUPT      = 0,
     parameter integer CORRUPT_ADDR = 4128,  // native base 4096 + 4*8
     parameter integer FIFO_FAULT = 0, // 1=underflow, 2=overflow
-    parameter integer DDR_PROOF = 0
+    parameter integer DDR_PROOF = 0,
+    parameter integer USE_WBUF  = 0,  // 1 = registered word-buffer gearbox
+    parameter integer FULL_CHECK = 0, // 1 = compare every active pixel
+    parameter integer FULL_FRAMES = 1 // frames to check with FULL_CHECK
 ) ();
 
     reg         clk_50m;
@@ -55,7 +58,9 @@ module tb_ddr_fb_hdmi_core #(
     always #10.000 clk_50m = ~clk_50m;    // 50 MHz
     always #3.750  dhi_clk = ~dhi_clk;    // 133.33 MHz
 
-    ddr_fb_hdmi_core dut (
+    ddr_fb_hdmi_core #(
+        .USE_WBUF (USE_WBUF)
+    ) dut (
         .clk_50m        (clk_50m),
         .rst_n          (rst_n),
         .dhi_clk        (dhi_clk),
@@ -129,6 +134,61 @@ module tb_ddr_fb_hdmi_core #(
         end
     endfunction
 
+    // ------------------------------------------------------------------
+    // Optional exhaustive per-pixel monitor (FULL_CHECK=1).
+    // The expected image is fb_pattern at the pixel position that is
+    // actually entering the TMDS encoder (pipe_hcount/pipe_vcount), so the
+    // check is valid for both the combinational and the registered gearbox.
+    // This catches word-boundary duplication/shift errors that sparse
+    // point checks would miss.
+    // ------------------------------------------------------------------
+    wire [15:0] exp565;
+    fb_pattern u_exp (
+        .x      (dut.pipe_hcount),
+        .y      (dut.pipe_vcount),
+        .rgb565 (exp565)
+    );
+
+    integer full_errs;
+    integer full_pixels;
+    integer full_frames_seen;
+    reg     in_frame;
+
+    initial begin
+        full_errs        = 0;
+        full_pixels      = 0;
+        full_frames_seen = 0;
+        in_frame         = 1'b0;
+    end
+
+    generate
+        if (FULL_CHECK != 0) begin : g_full
+            always @(posedge dut.pixel_clk) begin
+                #1;
+                if (dut.video_valid && dut.pipe_de &&
+                    !dut.underflow && !dut.reader_fifo_wr_overflow && !error) begin
+                    full_pixels = full_pixels + 1;
+                    if (dut.pipe_hcount == 10'd0 && dut.pipe_vcount == 10'd0)
+                        in_frame = 1'b1;
+                    if (in_frame) begin
+                        if (dut.rgb !== cvt565(exp565)) begin
+                            if (full_errs < 20)
+                                $display("FULL FAIL h=%0d v=%0d rgb=%06h exp=%06h",
+                                         dut.pipe_hcount, dut.pipe_vcount,
+                                         dut.rgb, cvt565(exp565));
+                            full_errs = full_errs + 1;
+                        end
+                        if (dut.pipe_hcount == 10'd639 &&
+                            dut.pipe_vcount == 10'd479) begin
+                            in_frame = 1'b0;
+                            full_frames_seen = full_frames_seen + 1;
+                        end
+                    end
+                end
+            end
+        end
+    endgenerate
+
     task check_pixel;
         input [9:0] h;
         input [9:0] v;
@@ -142,7 +202,11 @@ module tb_ddr_fb_hdmi_core #(
             while (!found) begin
                 @(posedge dut.pixel_clk);
                 #1;
-                if (dut.de && dut.hcount == h && dut.vcount == v) begin
+                // pipe_de/hcount/vcount are the pixel position actually at the
+                // TMDS encoder input. With USE_WBUF=0 they equal de/hcount/
+                // vcount; with USE_WBUF=1 they are the two-stage-delayed copy.
+                if (dut.pipe_de && dut.pipe_hcount == h &&
+                    dut.pipe_vcount == v) begin
                     found = 1'b1;
                     if (dut.rgb !== exp) begin
                         $display("FAIL h=%0d v=%0d rgb=%06h expected=%06h",
@@ -242,6 +306,18 @@ module tb_ddr_fb_hdmi_core #(
             // line 32: grid, and line 33: bar again
             check_pixel(10'd40,  10'd32, cvt565(16'h8410));
             check_pixel(10'd40,  10'd33, 24'hFFFFFF);
+
+            if (FULL_CHECK != 0) begin
+                wait (full_frames_seen >= FULL_FRAMES);
+                if (full_errs != 0) begin
+                    $display("FAIL full-frame pixel compare: %0d errors / %0d pixels",
+                             full_errs, full_pixels);
+                    errors = errors + 1;
+                end else begin
+                    $display("ok   full-frame pixel compare (%0d pixels, %0d frame(s))",
+                             full_pixels, full_frames_seen);
+                end
+            end
 
             // 5. No stream errors.
             if (dut.underflow !== 1'b0 || dut.reader_fifo_wr_overflow !== 1'b0 ||

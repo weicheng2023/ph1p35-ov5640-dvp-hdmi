@@ -55,6 +55,7 @@ LED4 on); keep as diagnostic history. Use
 | HDMI output (camera path) | Single-line PARTIAL PASS (image connected, pixels unconfirmed); full camera frame path not started |
 | DDR frame buffer | **CAL_EN=1: LED1 blink, LED2 on, LED3 off, LED4 on** (READY missing). **CAL_EN=0 control board: LED1 blink, LED2 on, LED3 on, LED4 off** → READY reachable with PHY training bypassed; data reliability NOT proven. No calibration-failure cause claimed. |
 | DDR frame buffer -> HDMI test image | **STAGE 2 — BOARD FUNCTIONAL PASS (2026-11-09 user report).** Independent `top_ddr_fb_hdmi` (`CAL_EN=0`, experimental): 16-beat self-check → 38400 single-beat 128-bit writes → full-frame readback pixel compare + actual-data CRC → prefill → VSYNC-aligned display. PAXI ADDR_STEP=8, active-high mask `0000`, WVALID one cycle after AW. Final bitstream `e83d9c54…`, Setup +0.110 / Hold +0.020 ns, 5283 slices. User confirmed the test image displays; LED/CRC details not provided. |
+| OV5640 -> DDR double buffer -> HDMI live | **SIM + TD BUILD PASSED (2026-11-13); BOARD NOT RUN (HREF-low fix).** `top_cam_fb_hdmi`: capture 7/7 + active-low case, integration 2/2 quick + 1/1 640x480 real-timing PASS; Stage 2 regression 12/12. First board image was left-black/right-blue; root cause identified as HREF polarity (`0x4740=0x22` + module inversion => HREF active low). Current bitstream `top_cam_fb_hdmi.bit`, SHA `787b26ee…`, `HREF_ACTIVE_HIGH=0`, Setup +0.404 / Hold +0.020 ns, 6952 slices. User must confirm the live image. |
 
 Board evidence:
 
@@ -329,6 +330,80 @@ camera registers or DVP RTL during this phase.
     -> DDR -> HDMI displays on board (2026-11-09, USER-REPORTED FUNCTIONAL
     PASS).** Keep CAL_EN=0/50 MHz/PLL/TMDS/SDC unchanged; no full PHY
     calibration or long-term reliability claim.
+
+**2026-11-09 open observation — colour-bar edge spurs (UNRESOLVED).** The user
+reports short horizontal spurs protruding right from every colour bar's right
+edge, scrolling upward, on the Stage 2 build. The picture is otherwise
+complete and no error screen appears, so the FIFO never underflowed and the
+boot-time frame CRC passed. Static timing says the pixel domain has ~11 ns
+margin while `usr_clk` (133.35 MHz, CAL_EN=0 untrained PHY) has only
++0.11 ns, so the pixel combinational path is **not** the first suspect.
+An experimental, non-destructive variant now exists:
+`pixel_gearbox_wbuf.v` (registered 128-bit word buffer + RGB565/RGB888
+registers, DE/HS/VS delayed 2 pixels), `ddr_fb_hdmi_core #(.USE_WBUF(1))`
+(default 0 leaves the proven path unchanged), top
+`top_ddr_fb_hdmi_wbuf.v`, bitstream
+`build/bitstream/top_ddr_fb_hdmi_wbuf_20261109.bit` (SHA `1f14bce5…`,
+Setup +0.218 / Hold +0.020 ns, 4547 slices, **4 ERAM**). The proven
+`top_ddr_fb_hdmi_paxi_fix_20261109.bit` (`e83d9c54…`) is untouched.
+Simulation 8/8 PASS; both the default and WBUF paths pass an exhaustive
+307,200-pixel frame compare; the original 12-case regression is still
+12/12 PASS. Caveat: TD mapped the display FIFO to ERAM in this build
+(distributed RAM in the proven build), so the experiment changes two
+variables. **Not board-tested. Do not claim the spur cause or a fix.**
+Evidence: `verification/static/ddr_fb_hdmi_wbuf_sim_2026-11-09.md`,
+`verification/static/top_ddr_fb_hdmi_wbuf_build_2026-11-09.md`,
+`verification/board/bringup-ddr-fb-hdmi-wbuf.md`. GUI view/edit entry:
+`fpga/project/top_ddr_fb_hdmi_wbuf.al` (TD File -> Open Project; 52 Verilog =
+17 design + 35 vendor IP RTL, matching the tcl list, so the hierarchy expands;
+`build/ddr_ip/ddr2.v` is excluded because it also defines module `ddr2`).
+Bitstreams still come from the tcl/bat: the IP pin assignments need
+`read_ip_adc` and P&R needs `legalize_phy_inst`. The wbuf build tcl must keep **CRLF** line endings; with
+LF, TD silently runs `read_adc` with an empty argument and MapIO fails with
+`SYN-8228`.
+
+**2026-11-13 Stage 3 implementation — SIM AND BUILD PASSED, BOARD NOT RUN.**
+OV5640 DVP → DDR double buffer → HDMI live path, reusing the Stage 2 PAXI
+contract (16-bit-word addresses, ADDR_STEP=8, active-high mask `0000`,
+AW then W one cycle later) and the proven HDMI PLL/TMDS chain. New RTL:
+`fpga/rtl/camera/ov5640_frame_capture.v` (PCLK full-frame capture, line
+RAM, length filter, per-frame header, black padding), `fpga/rtl/fb/cam_fb_writer.v`
+(ping-pong write, `buf_free` gating), `fpga/rtl/fb/cam_fb_reader.v`
+(one pass per display frame; waits for the display FIFO to drain at pass
+end so the buffer switch happens in vertical blanking), `cam_fb_hdmi_core.v`,
+`top_cam_fb_hdmi.v`, ADC/SDC/build/sim scripts. `async_fifo_gray` gained a
+read-only `wr_empty` output (existing ports/behaviour unchanged; Stage 2
+12/12 regression still PASS). Frame buffers: base word 4096 and 311296,
+38400 beats each. ModelSim: capture 7/7, integration 2/2 quick + 1/1
+640x480 real-timing PASS; full-frame tests check no tearing (same frame id
+at top and bottom of a displayed frame) and frame-id advance. Five real
+RTL bugs were found and fixed (writer header-pop pipeline, arbiter
+premature read release, ARVALID withdrawal, capture FIFO registered-enable
+full race, display FIFO backpressure holding the bus). The first bitstream (`HREF_ACTIVE_HIGH=1`) displayed
+left-black / right-light-blue on board, identical to the 2026-11-08
+single-line failure. **2026-11-13 polarity finding:** datasheet table
+7-18 makes `0x4740` bit1 the HREF polarity (default `0x20` = active low);
+the ALIENTEK reference driver leaves `0x4740` at its default and captures
+with HREF **high**, so this module's pin polarity is inverted relative to
+the datasheet bit. Writing `0x22` (bit1=1) therefore makes the pin HREF
+**active low**, and the measured low phase is 1280 PCLK = 640 RGB565
+pixels. The original `HREF_ACTIVE_HIGH=1` captured the 1920-PCLK blanking
+phase. Fix: `HREF_ACTIVE_HIGH=0` only; camera config/DDR/HDMI/SDC
+unchanged. Current bitstream `build/bitstream/top_cam_fb_hdmi.bit`,
+SHA-256
+`787b26ee9bd6e7e171e74a0947df6cd793b657838d282d05c4e8f9fe88ace15e`,
+Setup +0.404 / Hold +0.020 ns, 6952 slices, 0 RAM, 191 DRAMHARDCON.
+The previous HREF-high bitstream is preserved as
+`top_cam_fb_hdmi_hrefhigh_20261113.bit` (SHA `a25a2ac9…`).
+`-define CAM_COLOR_BAR` builds the camera internal pattern
+(`top_cam_fb_hdmi_colorbar.bit`, SHA `76d2ec77…`, same HREF-low polarity)
+without overwriting the live-image bitstream. Evidence: `verification/static/cam_fb_hdmi_sim_2026-11-13.md`,
+`verification/static/top_cam_fb_hdmi_build_2026-11-13.md`,
+`verification/board/bringup-cam-fb-hdmi.md`. **Do not claim a board PASS
+before the user observes the live image.** The Stage 2 colour-bar edge
+spurs are still UNRESOLVED; this stage is the vehicle to observe whether
+they persist on a live camera image. Do not modify the DDR-side RTL for
+that investigation without the user's explicit go-ahead.
 
 ## 3. Read order
 
@@ -773,4 +848,19 @@ verification/static/hdmi_colorbar_sim_2026-11-07.md
 verification/static/top_hdmi_colorbar_build_2026-11-07.md
 verification/static/ov5640_line_to_hdmi_sim_2026-11-08.md
 verification/static/top_ov5640_line_to_hdmi_build_2026-11-08.md
+fpga/rtl/camera/ov5640_frame_capture.v  Stage 3 PCLK full-frame capture
+fpga/rtl/fb/cam_fb_writer.v             Stage 3 ping-pong DDR writer
+fpga/rtl/fb/cam_fb_reader.v             Stage 3 display reader + frame align
+fpga/rtl/fb/cam_fb_hdmi_core.v          Stage 3 integration core
+fpga/rtl/top/top_cam_fb_hdmi.v          Stage 3 board top
+fpga/constraints/top_cam_fb_hdmi.adc/.sdc
+fpga/project/top_cam_fb_hdmi.al     GUI view/edit project (not for bitgen)
+docs/display/cam-fb-hdmi-vs-reference-lab.md  .al / DDR IP comparison
+fpga/scripts/build_top_cam_fb_hdmi.bat/.tcl
+fpga/scripts/sim_cam_fb.ps1             Stage 3 sim regression
+fpga/sim/tb/tb_ov5640_frame_capture.v
+fpga/sim/tb/tb_cam_fb_hdmi_core.v
+verification/static/cam_fb_hdmi_sim_2026-11-13.md
+verification/static/top_cam_fb_hdmi_build_2026-11-13.md
+verification/board/bringup-cam-fb-hdmi.md
 ```

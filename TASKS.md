@@ -477,10 +477,38 @@ CAL_EN=0、50 MHz、DDR/HDMI PLL、TMDS、视频时序、SDC 不改；不开展�
 
 ### L3. OV5640 → DDR 双缓冲 → HDMI
 
-- [ ] **L3.1** DVP 行采集 → 写 FIFO → AXI 128-bit 打包 → DDR。
-- [ ] **L3.2** DDR 读 → 读 FIFO → RGB565→RGB888 → HDMI。
-- [ ] **L3.3** 乒乓帧缓存/VSYNC 交换；不覆盖正在读的帧。
-- [ ] **L3.4** 镜头移动/遮挡/已知色卡验证像素正确性；
+- [x] **L3.1** DVP 整帧采集 → PCLK→dhi_clk 异步 FIFO（129-bit beat）
+  → PAXI 128-bit 单拍写。`ov5640_frame_capture.v`、`cam_fb_writer.v`；
+  行 RAM + 行长过滤 + 缺行黑填充 + 帧头协议。
+- [x] **L3.2** DDR 读 → 128-bit 显示 FIFO → gearbox → RGB565→RGB888 → HDMI。
+  `cam_fb_reader.v`、`cam_fb_hdmi_core.v`。
+- [x] **L3.3** 乒乓帧缓存：写侧只在显示未占用目标缓冲区时接受帧头；
+  读侧每显示帧一遍，帧末等显示 FIFO 排空后才换 buffer（避免撕裂）。
+- [x] **L3.4** ModelSim：Stage 3 快速 9/9 PASS + 640×480 真实时序 1/1 PASS；
+  Stage 2 12 例回归仍 12/12 PASS。证据
+  `verification/static/cam_fb_hdmi_sim_2026-11-13.md`。
+- [x] **L3.5** TD 构建 + 时序核查 + 位流。首版
+  （`HREF_ACTIVE_HIGH=1`）Setup **+0.184 ns** / Hold **+0.020 ns**，
+  6920 slices，SHA `a25a2ac9…`；上板为“左黑 + 右浅蓝”，与单行版一致。
+  **2026-11-13 极性修复**：数据手册 `0x4740` bit1=HREF 极性、默认
+  `0x20` 为低有效；正点原子参考用默认 `0x20` + HREF 高采集，说明本
+  模组引脚极性与 datasheet 相反；我们写 `0x22`（bit1=1）→ 引脚 HREF
+  低有效，低相位 1280 PCLK = 640 像素。故只把 `HREF_ACTIVE_HIGH`
+  1→0，重建为 `top_cam_fb_hdmi.bit`，SHA-256
+  `787b26ee9bd6e7e171e74a0947df6cd793b657838d282d05c4e8f9fe88ace15e`，
+  Setup **+0.404 / Hold +0.020 ns**，6952 slices，0 RAM/191
+  DRAMHARDCON。旧版保留为 `top_cam_fb_hdmi_hrefhigh_20261113.bit`。
+  彩条诊断位流同极性重建为 `top_cam_fb_hdmi_colorbar.bit`（SHA
+  `76d2ec77…`，Setup +0.820 / Hold +0.020 ns，6933 slices；旧 HREF=1
+  版保留为 `top_cam_fb_hdmi_colorbar_hrefhigh_20261113.bit`）。
+  `check_timing`：3 个 dangling 节点（HIGH）、PLL 533.600/533.333
+  舍入、23 输入/57 输出未设 IO delay（MEDIUM）；不作完整签核。
+  **上板结果待用户实测。** 证据
+  `verification/static/top_cam_fb_hdmi_build_2026-11-13.md`。
+- [ ] **L3.6** 上板：摄像头实时画面、移动/遮挡更新；记录阶段 2 彩条
+  “色块右缘短横毛刺、向上滚动”在本阶段是否仍存在及形式。步骤
+  `verification/board/bringup-cam-fb-hdmi.md`。
+- [ ] **L3.7** 镜头移动/遮挡/已知色卡验证像素正确性；
   再解决 HREF 窗口/字节序遗留问题。
 
 ## 待确认（阻塞项）
@@ -539,6 +567,8 @@ CAL_EN=0、50 MHz、DDR/HDMI PLL、TMDS、视频时序、SDC 不改；不开展�
 
 | 日期 | 内容 |
 |---|---|
+| 2026-11-13 | **Stage 3 实现与仿真/构建完成（未上板）**。复用阶段 2 的 DDR/HDMI 已验证模块与 PAXI 契约（word 地址 +8、掩码 `0000`、AW→W 下一拍），新增 `ov5640_frame_capture`（PCLK 整帧采集、行 RAM、行长过滤、缺行黑填充、帧头）、`cam_fb_writer`（乒乓写、`buf_free` 门控）、`cam_fb_reader`（每显示帧一遍、帧末等显示 FIFO 排空后换 buffer）、`cam_fb_hdmi_core`、`top_cam_fb_hdmi`、ADC/SDC/构建脚本/仿真脚本。`async_fifo_gray` 仅新增只读 `wr_empty`。仿真：采集 7/7、集成快速 2/2、640×480 真实时序 1/1 PASS；Stage 2 原 12 例仍 12/12 PASS。仿真修复 5 个真实问题（写侧帧头弹出晚一拍、仲裁器提前释放读、ARVALID 撤回、采集 FIFO 写使能晚一拍丢字、显示 FIFO 反压占总线）。TD：首版（`HREF_ACTIVE_HIGH=1`）Setup **+0.184 / Hold +0.020 ns**、6920 slices、0 RAM/191 DRAMHARDCON，SHA `a25a2ac9…`；上板为“左黑 + 右浅蓝”，与 2026-11-08 单行版一致。**2026-11-13 极性定位与修复**：数据手册 table 7-18 `0x4740` bit1=HREF 极性（默认 `0x20` 低有效）；正点原子参考不写 `0x4740`（默认 `0x20`）并用 HREF 高电平采集，说明本模组引脚极性与 datasheet 相反（与 bit0/VSYNC 反相一致）。我们写 `0x22`（bit1=1）→ 引脚 **HREF 低有效**，低相位实测 1280 PCLK = 640 像素。只改 `HREF_ACTIVE_HIGH` 1→0 重建：Setup **+0.404 / Hold +0.020 ns**、6952 slices，位流 SHA `787b26ee…`；旧版保留为 `hrefhigh_20261113.bit`。**上板结果待用户实测。** 用户要求在实时画面上观察阶段 2 彩条毛刺是否仍存在，本轮不改 DDR 侧代码。证据：`verification/static/cam_fb_hdmi_sim_2026-11-13.md`、`verification/static/top_cam_fb_hdmi_build_2026-11-13.md`、`verification/board/bringup-cam-fb-hdmi.md`。 |
+| 2026-11-09 | **阶段 2 色条毛刺：新增寄存器字缓冲（WBUF）试验位流（未上板）**。用户报告 `top_ddr_fb_hdmi_paxi_fix_20261109.bit` 上每个色条右边缘有向右突出的短横毛刺、持续向上滚动，怀疑 FIFO 头 → 8:1 MUX → RGB565→RGB888 → TMDS 的组合路径。新增 `pixel_gearbox_wbuf.v`（128-bit `word_buf` 寄存器 + 8:1 MUX + RGB565 寄存器；像素 6 弹出、像素 7 锁存下一字、消隐期预装）、`ddr_fb_hdmi_core` 参数 `USE_WBUF`（默认 0 不改原路径）、`top_ddr_fb_hdmi_wbuf.v`、构建脚本与仿真脚本。像素总延迟 2 拍，DE/HS/VS 同步延迟 2 拍对齐。ModelSim **8/8 PASS**：默认与 WBUF 两路都做 307200 像素全帧逐点比对（0 错），另有 READY_DELAY=2、DDR 源单像素、underflow、corrupt 负例；原 12 例回归重跑确认默认路径不变。TD：Setup **+0.218 ns** / Hold +0.020 ns、4547 slices、**4 ERAM**（显示 FIFO 被推断成 ERAM，原为 800 个 mslice）、36 DRAMHARDCON；位流 `top_ddr_fb_hdmi_wbuf_20261109.bit`，SHA `1f14bce5…`；原位流 `e83d9c54…` 未覆盖。**未上板，不声称毛刺成因或修复**。注意：本试验同时改了流水线和 FIFO 存储实现；若毛刺消失，还需“强制分布式 RAM”对照才能定位。证据：`verification/static/ddr_fb_hdmi_wbuf_sim_2026-11-09.md`、`verification/static/top_ddr_fb_hdmi_wbuf_build_2026-11-09.md`、`verification/board/bringup-ddr-fb-hdmi-wbuf.md`。 |
 | 2026-11-09 | **阶段 2 收尾：STAGE 2 — BOARD FUNCTIONAL PASS（用户报告）**。用户烧录 `top_ddr_fb_hdmi_paxi_fix_20261109.bit`（SHA `e83d9c54…`）后确认 FPGA 内部测试图 → DDR → HDMI 成功显示。最终修复：PAXI 原生地址单位为 16-bit word，128-bit 块 `ADDR_STEP=8`；全写掩码 `16'h0000`（高有效，0=写/1=屏蔽）；AW 接受后下一周期提供 WVALID 并保持到 WREADY；行为模型修正对齐/掩码/握手检查，旧 `+1`/`FFFF` 负例均可检出。DDR-source 单像素检查发现并修复 gearbox 块边界 FIFO pop 晚一拍。ModelSim 必要回归 **12/12 PASS**（正常 CRC `F53A4D4F`）；TD 6.2.1：Setup **+0.110 ns** / Hold **+0.020 ns**、5283 slices、0 RAM/0 DSP/100 DRAMHARDCON；`check_timing` 仍有 PLL/dummy/未设 IO delay 提示，不作完整时序签核。CAL_EN=0、50 MHz、DDR/HDMI PLL、TMDS、视频时序、SDC 未改。LED 逐项、CRC/照片未提供，记录为 **USER-REPORTED FUNCTIONAL PASS**，不宣称完整 PHY 校准或长期稳定性。证据：`verification/board/evidence/20261109_ddr_fb_hdmi_paxi_fix/README.md`、`verification/static/ddr_fb_hdmi_paxi_fix_sim_2026-11-09.md`、`verification/static/top_ddr_fb_hdmi_paxi_fix_build_2026-11-09.md`、`docs/display/ddr-framebuffer-bringup.md`。旧 11-08 `3cde314a…` 失败版保留为诊断历史。 |
 | 2026-11-08 | **DDR Frame Buffer → HDMI：RTL + ModelSim 3/3 + TD 构建完成（待上板）**。CAL_EN=0 对照已由用户实测：LED1 闪、LED2/3 亮、LED4 灭 → READY 可达（训练被绕过，不证明数据可靠）。新增独立 `top_ddr_fb_hdmi` / `ddr_fb_hdmi_core` / `fb_pattern` / `crc32_16` / `fb_writer` / `fb_reader` / `pixel_gearbox`、ADC/SDC/构建脚本、TB。核心流程：16-beat 自检 → 38400 个**单拍 128-bit** 写（BASE=4096、80 beat/行）→ 保守 DRAIN 1024（不声称写完成）→ 整帧读回逐像素比对 + **实际读回数据** CRC → FIFO 预充 192 字 → VSYNC 下降沿对齐 `video_valid` → 异步 FIFO（128×256，Gray 指针）→ 8:1 gearbox → 复用已上板 HDMI PLL/TMDS。仿真：正常 CRC `F53A4D4F`、`READY_DELAY=2` 同值、帧内 beat 4100 注入 1 bit → `err_addr=4100`、CRC `306B3F2A`、进入 `PH_ERROR` 且不启动显示；HDMI 第一帧 8 色/边框/标记/网格位置全部正确；无 underflow/overflow。TD：Setup **+0.163 ns** / Hold **+0.021 ns** / 5116 slices（24.11%）/ 0 RAM / 0 DSP / 100 DRAMHARDCON；`check_timing` HIGH no-clock 0、invalid 0、dummy 2（未用 PHY 输出 + 悬空 pllreset）、533.600 vs 533.333 舍入；位流 SHA `3cde314aec03dd68756628172a0bbc73e478b304091f9b436838f7998723ed58`。CDC 审计：本设计跨域仅有 Gray 指针 FIFO + 2FF；实验证明设计级二组异步声明在 TD 中与厂商 IP 单组声明冲突/冗余（invalid），强行替换会让厂商 IP 内部约束失效（Setup -2.467 ns），故最终保留厂商 IP SDC 并在文档中逐项说明。既有彩条/单行/DDR test/DDR debug 位流全部保留未覆盖。证据：`verification/static/ddr_fb_hdmi_sim_2026-11-08.md`、`verification/static/top_ddr_fb_hdmi_build_2026-11-08.md`、`verification/board/bringup-ddr-fb-hdmi.md`、`verification/board/evidence/20261108_ddr_fb_hdmi/README.md`（NOT RUN）。下一步：用户上板看 LED 与显示器图像。 |
 | 2026-11-08 | **CAL_EN=1 调试上板：PLL/复位已释放，READY 未到；构建 CAL_EN=0 对照**。用户实测 `top_ddr_debug.bit`（SHA `03339cf5...`）等待 >10 s：LED1 闪、LED2 亮、LED3 灭、LED4 亮 → `ddrphy_rst_n`=1（PLL/复位释放），`ddrphy_rdy`=0，1 s 独立超时触发。按现有 `DDR_CAL0=1` 机制构建只改 `CAL_EN` 的对照：`top_ddr_debug_cal0.bit` SHA `f3facdf8...`；TD Setup **+2.073 ns** / Hold **+0.021 ns** / 1290 slices / 7 DRAMHARDCON；CAL_EN=1 同源构建 1960 slices，差异来自 `ph1p_ddrphy_wrapper.v` 的 `if (CAL_EN==1'b1)` cal 生成块。PLL 参数（50 MHz/N=3/M=64/C=2/CLK3=21）、tCK/CL/CWL、复位、SDC、LED 逻辑、AXI/APB 接 0 全部不变；IP 文件列表同为 38 个，仅 `read_hdl` 多 `-define DDR_CAL0`、输出前缀不同。ModelSim 状态仿真 3/3 PASS。原 `top_ddr_test.bit`（`610b0b1f...`）与原 `top_ddr_debug.bit`（`03339cf5...`）均保留未覆盖。`check_timing`：CAL0 4 个 HIGH no-clock（CAL1 6 个，SDC 未改）、1 PLL dummy、533.600 vs 533.333、USR-6133；**不是时序签收**。下一步：CAL0 上板看 LED3/LED4；即使 LED3 亮也只证明 READY 到达，不证明数据可靠。 |

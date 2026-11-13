@@ -120,6 +120,39 @@ TD 的 `check_timing` 仍有 PLL/dummy 节点、533.600 vs 533.333 频率舍入�
 - 未验证长期稳定性、温度/电压余量、所有掩码/地址边界组合或复杂 burst。
 - 不得为了“收尾好看”修改 CAL_EN、DDR PLL、时钟或 PHY 后再宣称通过。
 
+## 7.1 未决：色条右边缘毛刺与 WBUF 试验（2026-11-09）
+
+用户报告：通过位流 `e83d9c54…` 显示测试图时，**每个色条的右边缘**有向右
+突出的短横细线毛刺，并且持续向上滚动。图像本身完整，没有错误色屏，
+说明 FIFO 没有 underflow/overflow，启动时的整帧 CRC 也通过。
+
+观察到的两个事实决定了排查方向：
+
+1. 毛刺只出现在**颜色跳变处**。在平坦色块内，一个错误的 128-bit 字
+   （8 个像素）或一个错误的像素与邻像素同色，看不出来；只有在色条边界
+   才会显形。所以“DDR/显示数据偶发错一个字”和“像素路径偶发采错”都能
+   解释这个位置特征。
+2. 静态时序报告里 `pixel_clk`（25 MHz）余量约 **11 ns**，而 `usr_clk`
+   （133.35 MHz，`CAL_EN=0` 未做 PHY 训练）只有 **+0.11 ns**。从静态
+   时序看，像素组合路径不是首先该怀疑的对象。
+
+因此新增一个**试验**位流（不覆盖原通过版）：
+
+- `pixel_gearbox_wbuf.v`：FIFO 头先寄存到 128-bit `word_buf`，再 8:1
+  MUX，再寄存 RGB565；RGB888 也寄存，DE/HS/VS 延迟 2 拍对齐。
+- 顶层 `top_ddr_fb_hdmi_wbuf`（`ddr_fb_hdmi_core #(.USE_WBUF(1))`），
+  位流 `top_ddr_fb_hdmi_wbuf_20261109.bit`，SHA `1f14bce5…`。
+- 仿真 8/8 PASS；默认与 WBUF 两路都通过 **307200 像素全帧逐点比对**，
+  字边界/色条边界 0 错。原 12 例回归重跑 12/12 PASS。
+- TD：Setup +0.218 ns / Hold +0.020 ns，4547 slices，**4 ERAM**。
+  注意 TD 把显示 FIFO 从分布式 RAM 改成了 ERAM，所以本试验同时改变了
+  “流水线结构”和“FIFO 存储实现”；若毛刺消失，需要再做一次
+  `(* ram_style = "dram" *)` 的对照构建才能定位。
+- **尚未上板**；在用户实测前，不写“毛刺已修复”，也不改写阶段 2 的通过记录。
+
+若上板后毛刺仍在，下一步应做“显示阶段运行期比对”（每读回一个 beat 就与
+`fb_pattern` 比较并点灯），用来区分 DDR 读错误与显示通路错误。
+
 ## 8. 复现入口
 
 - 最终构建：`fpga/scripts/build_top_ddr_fb_hdmi.bat`
@@ -129,3 +162,11 @@ TD 的 `check_timing` 仍有 PLL/dummy 节点、533.600 vs 533.333 频率舍入�
 - 构建证据：[top_ddr_fb_hdmi_paxi_fix_build_2026-11-09.md](../../verification/static/top_ddr_fb_hdmi_paxi_fix_build_2026-11-09.md)
 - 实物证据：[20261109_ddr_fb_hdmi_paxi_fix](../../verification/board/evidence/20261109_ddr_fb_hdmi_paxi_fix/README.md)
 - 失败历史：[20261108_ddr_fb_hdmi](../../verification/board/evidence/20261108_ddr_fb_hdmi/README.md)
+
+WBUF 毛刺试验：
+
+- 构建：`fpga/scripts/build_top_ddr_fb_hdmi_wbuf.bat`
+- 仿真：`powershell -ExecutionPolicy Bypass -File fpga/scripts/sim_ddr_fb_wbuf.ps1`
+- 上板步骤：[bringup-ddr-fb-hdmi-wbuf.md](../../verification/board/bringup-ddr-fb-hdmi-wbuf.md)
+- 仿真证据：[ddr_fb_hdmi_wbuf_sim_2026-11-09.md](../../verification/static/ddr_fb_hdmi_wbuf_sim_2026-11-09.md)
+- 构建证据：[top_ddr_fb_hdmi_wbuf_build_2026-11-09.md](../../verification/static/top_ddr_fb_hdmi_wbuf_build_2026-11-09.md)

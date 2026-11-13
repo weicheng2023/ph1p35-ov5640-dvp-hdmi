@@ -9,10 +9,15 @@
 >   ModelSim 12/12 PASS，TD Setup +0.110 / Hold +0.020 ns，5283 slices，
 >   位流 `top_ddr_fb_hdmi_paxi_fix_20261109.bit`（SHA `e83d9c54…`）。
 >   用户确认测试图 → DDR → HDMI 完整显示；CAL_EN=0 仍为实验配置。
-> - **下一阶段：Stage 3（OV5640 → DDR 双缓冲 → HDMI）**。
+> - **Stage 3（OV5640 → DDR 双缓冲 → HDMI）：RTL/仿真/TD 构建完成，未上板。**
+>   采集 7/7、集成 2/2 快速 + 1/1 640×480 真实时序 PASS；Stage 2 回归 12/12。
+>   TD Setup +0.184 / Hold +0.020 ns，6920 slices；位流
+>   `build/bitstream/top_cam_fb_hdmi.bit`（SHA `a25a2ac9…`）。
+>   构建：`scripts/build_top_cam_fb_hdmi.bat`（`CAM_COLOR_BAR=1` 生成
+>   摄像头内部彩条诊断位流）；上板：
+>   `verification/board/bringup-cam-fb-hdmi.md`。
 > 入口：`docs/display/ddr-framebuffer-bringup.md`；
-> 构建：`scripts/build_top_ddr_fb_hdmi.bat`；
-> 上板：`verification/board/bringup-ddr-fb-hdmi-paxi-fix.md`；
+> 阶段 2 上板：`verification/board/bringup-ddr-fb-hdmi-paxi-fix.md`；
 > 交接：`docs/project/next-session-prompt.md`。
 
 ## 1. 目录职责

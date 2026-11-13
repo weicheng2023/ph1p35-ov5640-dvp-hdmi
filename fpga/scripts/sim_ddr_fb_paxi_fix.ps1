@@ -6,7 +6,8 @@ New-Item -ItemType Directory -Force $sim | Out-Null
 $sources = @(
     'rtl/ddr/ddr_axi_pattern_test.v', 'rtl/ddr/fb_pattern.v',
     'rtl/ddr/crc32_16.v', 'rtl/ddr/fb_writer.v', 'rtl/ddr/fb_reader.v',
-    'rtl/ddr/pixel_gearbox.v', 'rtl/common/async_fifo_gray.v',
+    'rtl/ddr/pixel_gearbox.v', 'rtl/ddr/pixel_gearbox_wbuf.v',
+    'rtl/common/async_fifo_gray.v',
     'rtl/display/video_timing.v', 'rtl/display/rgb565_to_rgb888.v',
     'rtl/display/tmds_encoder.v', 'rtl/display/tmds_serializer.v',
     'rtl/display/serial_load_gen.v', 'sim/models/pll_hdmi_sim.v',

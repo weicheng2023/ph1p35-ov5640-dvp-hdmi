@@ -63,6 +63,9 @@ set dt_crc_v      [file join $dt_rtl_dir ddr     crc32_16.v]
 set dt_writer_v   [file join $dt_rtl_dir ddr     fb_writer.v]
 set dt_reader_v   [file join $dt_rtl_dir ddr     fb_reader.v]
 set dt_gearbox_v  [file join $dt_rtl_dir ddr     pixel_gearbox.v]
+# Compiled but not instantiated by this top (USE_WBUF=0 default). Keeps the
+# HDL reader happy about the generate branch in ddr_fb_hdmi_core.
+set dt_wbuf_v     [file join $dt_rtl_dir ddr     pixel_gearbox_wbuf.v]
 set dt_fifo_v     [file join $dt_rtl_dir common  async_fifo_gray.v]
 set dt_cvt_v      [file join $dt_rtl_dir display rgb565_to_rgb888.v]
 set dt_pll_v      [file join $dt_rtl_dir display pll_hdmi.v]
@@ -139,7 +142,7 @@ set dt_ip_files [list \
 
 set dt_hdl_files [concat [list \
     $dt_top_v $dt_core_v $dt_ddr2_v $dt_pattern_v $dt_fbpat_v $dt_crc_v \
-    $dt_writer_v $dt_reader_v $dt_gearbox_v $dt_fifo_v $dt_cvt_v $dt_pll_v \
+    $dt_writer_v $dt_reader_v $dt_gearbox_v $dt_wbuf_v $dt_fifo_v $dt_cvt_v $dt_pll_v \
     $dt_timing_v $dt_enc_v $dt_load_v $dt_ser_v] $dt_ip_files]
 set dt_hdl_str [join $dt_hdl_files " "]
 

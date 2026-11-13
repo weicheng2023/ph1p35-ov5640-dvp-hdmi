@@ -22,7 +22,14 @@
 // ============================================================================
 `timescale 1ns / 1ps
 
-module ddr_fb_hdmi_core (
+module ddr_fb_hdmi_core #(
+    // 0 = original pixel_gearbox (combinational FIFO head -> mux -> encoder).
+    // 1 = experimental pixel_gearbox_wbuf: registered 128-bit word buffer +
+    //     registered RGB565 pixel. DE/HS/VS are delayed by the same number of
+    //     pixel stages before the TMDS encoder so the picture does not shift.
+    // The proven top_ddr_fb_hdmi build uses the default (0).
+    parameter integer USE_WBUF = 0
+) (
     input  wire        clk_50m,
     input  wire        rst_n,
     input  wire        dhi_clk,
@@ -455,23 +462,84 @@ module ddr_fb_hdmi_core (
         end
     end
 
-    pixel_gearbox u_gearbox (
-        .pixel_clk     (pixel_clk),
-        .rst_n         (rst_pixel_n),
-        .video_valid   (video_valid),
-        .de            (de),
-        .fifo_rd_data  (fifo_rd_data),
-        .fifo_rd_empty (fifo_rd_empty),
-        .fifo_rd_en    (fifo_rd_en),
-        .rgb565        (img565),
-        .underflow     (underflow)
-    );
+    generate
+        if (USE_WBUF != 0) begin : g_wbuf
+            pixel_gearbox_wbuf u_gearbox (
+                .pixel_clk     (pixel_clk),
+                .rst_n         (rst_pixel_n),
+                .video_valid   (video_valid),
+                .de            (de),
+                .fifo_rd_data  (fifo_rd_data),
+                .fifo_rd_empty (fifo_rd_empty),
+                .fifo_rd_en    (fifo_rd_en),
+                .rgb565        (img565),
+                .underflow     (underflow)
+            );
+        end else begin : g_async
+            pixel_gearbox u_gearbox (
+                .pixel_clk     (pixel_clk),
+                .rst_n         (rst_pixel_n),
+                .video_valid   (video_valid),
+                .de            (de),
+                .fifo_rd_data  (fifo_rd_data),
+                .fifo_rd_empty (fifo_rd_empty),
+                .fifo_rd_en    (fifo_rd_en),
+                .rgb565        (img565),
+                .underflow     (underflow)
+            );
+        end
+    endgenerate
 
-    wire [23:0] img888;
+    wire [23:0] img888_raw;
     rgb565_to_rgb888 u_cvt (
         .rgb565 (img565),
-        .rgb888 (img888)
+        .rgb888 (img888_raw)
     );
+
+    // ------------------------------------------------------------------
+    // Optional second register stage (RGB888) + matching DE/HS/VS delay.
+    //
+    // img565 is already registered in pixel_gearbox_wbuf, so the total pixel
+    // latency is two: rgb565 at +1 and img888_r at +2. The encoder must see
+    // DE/HS/VS delayed by the same two pixels or the image shifts / tears.
+    //
+    // pipe_* expose the pixel position that is actually at the encoder input
+    // (used by the testbench). With USE_WBUF=0 they are the raw counters, so
+    // the original builds and checks are unchanged.
+    // ------------------------------------------------------------------
+    reg [23:0] img888_r;
+    reg        de_d1, de_d2;
+    reg        hs_d1, hs_d2;
+    reg        vs_d1, vs_d2;
+    reg [9:0]  hc_d1, hc_d2;
+    reg [9:0]  vc_d1, vc_d2;
+
+    always @(posedge pixel_clk or posedge hdmi_rst) begin
+        if (hdmi_rst) begin
+            img888_r <= 24'd0;
+            de_d1    <= 1'b0;  de_d2 <= 1'b0;
+            hs_d1    <= 1'b1;  hs_d2 <= 1'b1;
+            vs_d1    <= 1'b1;  vs_d2 <= 1'b1;
+            hc_d1    <= 10'd0; hc_d2 <= 10'd0;
+            vc_d1    <= 10'd0; vc_d2 <= 10'd0;
+        end else begin
+            img888_r <= img888_raw;
+            de_d1    <= de;    de_d2 <= de_d1;
+            hs_d1    <= hs;    hs_d2 <= hs_d1;
+            vs_d1    <= vs;    vs_d2 <= vs_d1;
+            hc_d1    <= hcount; hc_d2 <= hc_d1;
+            vc_d1    <= vcount; vc_d2 <= vc_d1;
+        end
+    end
+
+    wire [23:0] img888    = (USE_WBUF != 0) ? img888_r : img888_raw;
+    wire        de_enc    = (USE_WBUF != 0) ? de_d2    : de;
+    wire        hs_enc    = (USE_WBUF != 0) ? hs_d2    : hs;
+    wire        vs_enc    = (USE_WBUF != 0) ? vs_d2    : vs;
+
+    (* keep *) wire [9:0] pipe_hcount = (USE_WBUF != 0) ? hc_d2 : hcount;
+    (* keep *) wire [9:0] pipe_vcount = (USE_WBUF != 0) ? vc_d2 : vcount;
+    (* keep *) wire       pipe_de     = (USE_WBUF != 0) ? de_d2 : de;
 
     // Fatal/display-error CDC to the pixel domain for the red screen.
     reg fatal_p1, fatal_p2;
@@ -522,8 +590,8 @@ module ddr_fb_hdmi_core (
         .clk  (pixel_clk),
         .rst  (hdmi_rst),
         .din  (rgb[7:0]),
-        .ctrl ({vs, hs}),
-        .de   (de),
+        .ctrl ({vs_enc, hs_enc}),
+        .de   (de_enc),
         .dout (tmds_ch0)
     );
 
@@ -532,7 +600,7 @@ module ddr_fb_hdmi_core (
         .rst  (hdmi_rst),
         .din  (rgb[15:8]),
         .ctrl (2'b00),
-        .de   (de),
+        .de   (de_enc),
         .dout (tmds_ch1)
     );
 
@@ -541,7 +609,7 @@ module ddr_fb_hdmi_core (
         .rst  (hdmi_rst),
         .din  (rgb[23:16]),
         .ctrl (2'b00),
-        .de   (de),
+        .de   (de_enc),
         .dout (tmds_ch2)
     );
 

@@ -11,6 +11,19 @@
 > 证据为用户报告；LED 逐项、CRC、照片未提供。旧位流 `3cde314a…` 为
 > 失败诊断历史，保留但不用于验收。**不宣称完整 PHY 校准或长期稳定性。**
 
+> **2026-11-13 Stage 3：OV5640 → DDR 双缓冲 → HDMI 实时通路 RTL/仿真/TD 构建完成**
+> **（HREF 极性修复版待上板确认）。**
+> 首版上板为“左黑 + 右浅蓝”，与 2026-11-08 单行版一致；定位为
+> `0x4740=0x22` 在本模组上实际是 **HREF 低有效**（低相位 1280 PCLK =
+> 640 像素），原 `HREF_ACTIVE_HIGH=1` 抓到了消隐高相位。只改该参数
+> 1→0 重建：`top_cam_fb_hdmi.bit`（SHA `787b26ee…`），Setup +0.404 /
+> Hold +0.020 ns。旧版保留为 `top_cam_fb_hdmi_hrefhigh_20261113.bit`。
+> 采集 7/7 + active-low、集成 2/2 + 1/1 全尺寸 PASS；阶段 2 回归 12/12。
+> 见[仿真](verification/static/cam_fb_hdmi_sim_2026-11-13.md)、
+> [构建](verification/static/top_cam_fb_hdmi_build_2026-11-13.md)、
+> [上板步骤](verification/board/bringup-cam-fb-hdmi.md)。
+> 上板要同时观察阶段 2 彩条“色块右缘短横毛刺、向上滚动”是否仍存在。
+>
 > **当前状态（2026-11-09）：HDMI 彩条用户报告 PASS；OV5640 单行 → HDMI 为 PARTIAL PASS；阶段 2 测试图 → DDR → HDMI 功能通过（用户报告）；下一阶段为 OV5640 实时帧缓存。**
 > 最小 SCCB Chip ID 工程已上板验证通过（0x5640）；DVP RTL、仿真、
 > RGB565 配置/回读和 TD 构建均已通过。
@@ -187,6 +200,11 @@
 | **DDR 帧缓存上板** | [verification/board/bringup-ddr-fb-hdmi-paxi-fix.md](verification/board/bringup-ddr-fb-hdmi-paxi-fix.md) | **BOARD FUNCTIONAL PASS（用户报告）** |
 | **DDR 帧缓存实物证据** | [20261109_ddr_fb_hdmi_paxi_fix](verification/board/evidence/20261109_ddr_fb_hdmi_paxi_fix/README.md) | **STAGE 2 功能通过（用户报告）** |
 | DDR 帧缓存失败历史 | [20261108_ddr_fb_hdmi](verification/board/evidence/20261108_ddr_fb_hdmi/README.md) | 旧 +1/FFFF 整屏红；已修复 |
+| **Stage 3 仿真** | [verification/static/cam_fb_hdmi_sim_2026-11-13.md](verification/static/cam_fb_hdmi_sim_2026-11-13.md) | 采集 7/7、集成 2/2 + 全尺寸 1/1；Stage 2 回归 12/12 |
+| **Stage 3 构建** | [verification/static/top_cam_fb_hdmi_build_2026-11-13.md](verification/static/top_cam_fb_hdmi_build_2026-11-13.md) | HREF 低有效版 +0.404/+0.020 ns；6952 slices；SHA `787b26ee…` |
+| **Stage 3 上板步骤** | [verification/board/bringup-cam-fb-hdmi.md](verification/board/bringup-cam-fb-hdmi.md) | LED/错误色/观察项（含彩条毛刺复核）；**未上板** |
+| **Stage 3 GUI 工程** | [fpga/project/top_cam_fb_hdmi.al](fpga/project/top_cam_fb_hdmi.al) | 20 设计 + 35 IP RTL + ADC/SDC；仅查看/编辑，位流仍用 tcl |
+| **与参考 Lab 对比** | [docs/display/cam-fb-hdmi-vs-reference-lab.md](docs/display/cam-fb-hdmi-vs-reference-lab.md) | IP 内部未改；仅实例参数/SDC/工程组织差异 |
 | 第三方参考 | `third_party/` | 仍为空 |
 
 ## 5. 仓库结构
